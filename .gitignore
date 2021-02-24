@@ -1,0 +1,17 @@
+.DS_Store
+
+__pycache__
+.eggs
+*.egg-info
+dist/
+build/
+
+poetry.lock
+
+sandbox
+.vscode
+*.code-workspace
+.ipynb_checkpoints/
+.coverage
+htmlcov
+.python-version

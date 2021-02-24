@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "tess-cloud"
+version = "0.1.0"
+description = "Analyze NASA TESS data in the cloud."
+license = "MIT"
+authors = ["Geert Barentsen <hello@geert.io>"]
+readme = "README.rst"
+homepage = "https://github.com/SSDataLab/tess-cloud"
+repository = "https://github.com/SSDataLab/tess-cloud"
+keywords = ["NASA, TESS, Astronomy"]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Astronomy",
+]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+s3fs = "^0.5.2"
+numpy = "^1.20.1"
+astropy = "^4.2"
+tess-locator = "^0.2.1"
+tess-ephem = "^0.1.1"
+lightkurve = "^2.0.2"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.0"
+black = {version = "^20.8b1", allow-prereleases = true}
+flake8 = "^3.8.4"
+pytest-cov = "^2.10.1"
+isort = "^5.6.4"
+mypy = "^0.790"
+line-profiler = "^3.1.0"
+jupyterlab = "^2.2.9"
+pytest-xdist = "^2.1.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
