@@ -1,13 +1,14 @@
-"""
-TODO
-----
-* TessImage should accept any file-like object in addition to a URI string.
-"""
 import re
 import struct
 
-import s3fs
+import boto3
+import aioboto3
+from botocore import UNSIGNED
+from botocore.config import Config
 import numpy as np
+
+from . import log
+
 
 # FITS standard specifies that header and data units
 # shall be a multiple of 2880 bytes long.
@@ -19,15 +20,23 @@ FFI_ROWS = 2078  # i.e. NAXIS2
 
 BYTES_PER_PIX = 4  # float32
 
-S3FILESYSTEM = s3fs.S3FileSystem(anon=True)
+#S3FILESYSTEM = s3fs.S3FileSystem(anon=True)
 # Use a small block size when reading from S3 to avoid wasting time on excessive buffering
 S3_BLOCK_SIZE = 2880  # bytes
 
 
 class TessImage:
 
-    def __init__(self, url):
+    def __init__(self, url, data_offset=None):
         self.url = url
+        if data_offset:
+            self._data_offset
+
+    @property
+    def _s3_client(self):
+        if not hasattr(self, "__s3_client"):
+            self.__s3_client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
+        return self.__s3_client
 
     @property
     def _fileobj(self):
@@ -44,8 +53,9 @@ class TessImage:
     def read_header(self):
         pass
 
+    """
     def read_block(self, offset: int, length: int) -> bytes:
-        """Returns a block of bytes from the file.
+        Returns a block of bytes from the file.
 
         Parameters
         ----------
@@ -53,15 +63,49 @@ class TessImage:
             Byte offset to start read
         length: int
             Number of bytes to read
-        """
+        
         f = self._fileobj
         f.seek(offset, whence=0)
         return f.read(length)
+    """
 
-    def read_blocks(self, blocks: list) -> bytes:
+    def read_block(self, offset: int, length: int) -> bytes:
+        response = self._s3_client.get_object(
+            Bucket='stpubdata',
+            Key=self.url.split("stpubdata/")[1],
+            Range='bytes={}-{}'.format(offset, offset+length-1)
+        )
+        return response['Body'].read()
+
+    def read_blocks(self, blocks: list) -> list:
         result = []
         for blk in blocks:
             result.append(self.read_block(offset=blk[0], length=blk[1]))
+        return result
+
+    async def async_s3fs_read_block(self, offset: int, length: int) -> bytes:
+        """s3fs async version of read_block"""
+        import s3fs
+        s3 = s3fs.S3FileSystem(anon=True, asynchronous=True)
+        await s3._connect()
+        with s3.open(self.url, mode='rb') as f:
+            f.seek(offset, whence=0)
+            return f.read(length)
+
+    async def async_read_block(self, offset: int, length: int) -> bytes:
+        """Alternative async implementation using aioboto3."""
+        async with aioboto3.client("s3", config=Config(signature_version=UNSIGNED)) as s3:
+            response = await s3.get_object(
+                Bucket='stpubdata',
+                Key=self.url.split("stpubdata/")[1],
+                Range='bytes={}-{}'.format(offset, offset+length-1)
+            )
+            return await response['Body'].read()
+
+    async def async_read_blocks(self, blocks: list) -> list:
+        result = []
+        for blk in blocks:
+            result.append(await self.async_read_block(offset=blk[0], length=blk[1]))
         return result
 
     def _find_data_offset(self, ext=1) -> int:
@@ -121,9 +165,35 @@ class TessImage:
             data.append(values)
         return np.array(data)
 
+    async def async_cutout_array(self, col, row, shape=(5, 5)) -> np.array:
+        blocks = self._find_pixel_blocks(col=col, row=row, shape=shape)
+        bytedata = await self.async_read_blocks(blocks)
+        data = []
+        for b in bytedata:
+            n_pixels = len(b) // BYTES_PER_PIX
+            values = struct.unpack(">" + "f" * n_pixels, b)
+            data.append(values)
+        return np.array(data)        
+
     def cutout(self, col, row, shape=(5, 5)) -> "Cutout":
         """Returns a 2D array of pixel values."""
         flux = self.cutout_array(col=col, row=row, shape=shape)
+        time = 0
+        cadenceno = 0
+        quality = 0
+        flux_err = flux.copy()
+        flux_err[:] = np.nan
+        return Cutout(
+            time=time,
+            cadenceno=cadenceno,
+            flux=flux,
+            flux_err=flux_err,
+            quality=quality,
+        )
+
+    async def async_cutout(self, col, row, shape=(5, 5)) -> "Cutout":
+        """Returns a 2D array of pixel values."""
+        flux = await self.async_cutout_array(col=col, row=row, shape=shape)
         time = 0
         cadenceno = 0
         quality = 0
@@ -157,6 +227,7 @@ class Cutout:
 
 
 def list_images(sector, camera, ccd):
+    import s3fs
     fs = s3fs.S3FileSystem(anon=True)
     uris = fs.glob(f"stpubdata/tess/public/ffi/s{SECTOR:04d}/*/*/{CAMERA}-{CCD}/**_ffic.fits")
     return [TessImage(uri) for uri in uris]

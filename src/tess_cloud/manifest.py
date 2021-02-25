@@ -18,6 +18,7 @@ def load_manifest():
                        compression='gzip',
                        names=['modified_date', 'modified_time', 'size', 'path'])
 
+
 @lru_cache  # in-memory cache
 def get_cloud_uri(filename):
     """Returns the AWS S3 URI of a TESS file."""

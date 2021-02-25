@@ -15,7 +15,9 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-s3fs = "^0.5.2"
+boto3 = ">=1.16"
+aioboto3 = ">=7.0"
+s3fs = ">=0.4"
 numpy = "^1.20.1"
 astropy = "^4.2"
 tess-locator = "^0.2.1"
@@ -32,6 +34,7 @@ mypy = "^0.790"
 line-profiler = "^3.1.0"
 jupyterlab = "^2.2.9"
 pytest-xdist = "^2.1.0"
+nest-asyncio = "^1.5"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

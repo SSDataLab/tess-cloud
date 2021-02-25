@@ -1,7 +1,7 @@
 tess-cloud
 ==========
 
-**Analyze TESS Full Frame Images using AWS S3.**
+**Analyze the TESS open dataset in AWS S3.**
 
 |pypi|
 
@@ -9,9 +9,12 @@ tess-cloud
                 :target: https://pypi.python.org/pypi/tess-cloud
 
 
-`tess-cloud` is a user-friendly package which provides fast access to sections of TESS Full-Frame Image (FFI) data.
-It uses the AWS S3 public data set for TESS to access those parts of an FFI that are required
-to obtain data cut-outs.
+`tess-cloud` is a user-friendly package which provides fast access to TESS Full-Frame Image (FFI) data in the cloud.
+It builds upon `aioboto3 <https://pypi.org/project/aioboto3/>`_,
+`asyncio <https://docs.python.org/3/library/asyncio.html>`_,
+and `diskcache <https://pypi.org/project/diskcache/>`_
+to access the `TESS data set in AWS S3 <https://registry.opendata.aws/tess/>`_
+in a fast, asynchronous, and cached way.
 
 Installation
 ------------
@@ -23,7 +26,25 @@ Installation
 Example use
 -----------
 
-Obtain a Target Pixel File for a stationary object:
+Retrieve the AWS S3 location of a TESS image:
+
+.. code-block:: python
+
+    >>> from tess_cloud import get_uri
+    >>> get_uri("tess2019199202929-s0014-2-3-0150-s_ffic.fits")
+    "s3://stpubdata/tess/public/ffi/s0014/2019/199/2-3/tess2019199202929-s0014-2-3-0150-s_ffic.fits"
+
+
+Read a TESS image from S3 into local memory:
+
+.. code-block:: python
+
+    >>> from tess_cloud import read
+    >>> read("tess2019199202929-s0014-2-3-0150-s_ffic.fits")
+    <astropy.io.fits.HDUList>
+
+
+Cutout a Target Pixel File for a stationary object:
 
 .. code-block:: python
 
@@ -32,7 +53,7 @@ Obtain a Target Pixel File for a stationary object:
     TargetPixelFile("Alpha Cen")
 
 
-Obtain a Target Pixel File centered on a moving asteroid:
+Cutout a Target Pixel File centered on a moving asteroid:
 
 .. code-block:: python
 
@@ -41,13 +62,13 @@ Obtain a Target Pixel File centered on a moving asteroid:
     TargetPixelFile("Vesta")
 
 
-Quickly download the header of an FFI:
+Read the header of a TESS image into local memory:
 
 .. code-block:: python
 
-    >>> from tess_cloud import cutout_header
-    >>> cutout_header(url, ext=0)
-    FitsHeader
+    >>> from tess_cloud import read_header
+    >>> read_header(uri, ext=0)
+    <astropy.io.fits.FitsHeader>
 
 
 Documentation
@@ -63,6 +84,4 @@ Similar services
 to be obtained for stationary objects.  Tess-cloud provides an alternative implementation of this
 service by leveraging the TESS public data set on AWS S3.
 
-Compared to TESScut, the goal of tess-cloud is provide an alternative way to obtain cut-outs which
-does not require a central API service, but can instead be run on a local machine or in the cloud.
 At this time tess-cloud is an experiment, we recommend that you keep using TESScut for now!

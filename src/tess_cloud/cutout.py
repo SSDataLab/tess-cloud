@@ -1,3 +1,10 @@
+# asyncio cannot be used in a Jupyter notebook environment
+# without the following:
+import nest_asyncio
+nest_asyncio.apply()
+
+import asyncio
+
 from tess_locator import locate, TessCoordList
 from tess_ephem import ephem
 
@@ -18,7 +25,7 @@ def cutout_header():
     pass
 
 
-def cutout(target: str, sector: int = None, shape=(5, 5), images: int = None) -> TargetPixelFile:
+def cutout(target: str, shape: tuple = (5, 5), sector: int = None, images: int = None, asynchronous=True) -> TargetPixelFile:
     """Returns a target pixel file."""
     crd = locate(target=target, sector=sector)[0]
     imagelist = crd.get_images()
@@ -26,17 +33,23 @@ def cutout(target: str, sector: int = None, shape=(5, 5), images: int = None) ->
         imagelist = imagelist[:images]
     filenames = [img.filename for img in imagelist]
     uris = [get_cloud_uri(fn) for fn in filenames]
-    cutouts = []
-    for idx, uri in enumerate(uris):
-        img = TessImage(uri)
-        cutout = img.cutout(col=crd.column, row=crd.row, shape=shape)
-        cutouts.append(cutout)
+
+    if asynchronous:
+        async def _get_cutouts():
+            return await asyncio.gather(
+                *[TessImage(uri).async_cutout(col=crd.column, row=crd.row, shape=shape)
+                for uri in uris]
+            )
+        cutouts = asyncio.run(_get_cutouts())
+    else:
+        cutouts = [TessImage(uri).cutout(col=crd.column, row=crd.row, shape=shape)
+                   for uri in uris]
 
     tpf = TargetPixelFile.from_cutouts(cutouts)
     return tpf.to_lightkurve()
 
 
-def cutout_asteroid(target: str, shape=(10, 10), sector: int = None, images: int = None) -> TargetPixelFile:
+def cutout_asteroid(target: str, shape: tuple = (10, 10), sector: int = None, images: int = None, asynchronous=True) -> TargetPixelFile:
     """Returns a moving Target Pixel File centered on an asteroid."""
     eph = ephem(target, verbose=True)
     if sector is None:
@@ -59,9 +72,3 @@ def cutout_asteroid(target: str, shape=(10, 10), sector: int = None, images: int
         cutouts.append(cutout)
     tpf = TargetPixelFile.from_cutouts(cutouts)
     return tpf.to_lightkurve()
-
-
-async def _one_cutout(uri, column, row, shape):
-    img = TessImage(uri)
-    cutout = img.cutout(col=column, row=row, shape=shape)
-    return cutout
