@@ -15,7 +15,7 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-numpy = ">=1.20.1"
+numpy = ">=1.19"
 astropy = ">=4.2"
 tess-locator = ">=0.2.1"
 tess-ephem = ">=0.1.1"

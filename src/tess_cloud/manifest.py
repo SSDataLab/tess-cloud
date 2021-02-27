@@ -21,7 +21,7 @@ def get_boto3_client():
     return boto3.client("s3", config=Config(signature_version=UNSIGNED))
 
 
-@lru_cache  # in-memory cache
+@lru_cache(maxsize=None)  # in-memory cache
 def _load_manifest_table():
     """Returns `tess/public/manifest.txt.gz` as a dataframe.
     
@@ -46,12 +46,11 @@ def _load_manifest_lookup() -> dict:
     return lookup
 
 
-@lru_cache  # faster in-memory cache
+@lru_cache(maxsize=None)  # faster in-memory cache
 def load_manifest_lookup() -> dict:
     return _load_manifest_lookup()
 
 
-#@lru_cache  # in-memory cache
 def get_cloud_uri(filename: str) -> str:
     """Returns the S3 URI of a TESS data product given its filename."""
     lookup = load_manifest_lookup()
