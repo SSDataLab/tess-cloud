@@ -1,3 +1,5 @@
+# TODO: set good guess for data_offset
+
 # asyncio cannot be used in a Jupyter notebook environment
 # without the following:
 import nest_asyncio
@@ -11,6 +13,10 @@ from tess_ephem import ephem
 from .image import TessImage
 from .targetpixelfile import TargetPixelFile
 from .manifest import get_cloud_uri
+
+import aioboto3
+from botocore import UNSIGNED
+from botocore.config import Config
 
 
 def cutout_ffi(url, col, row, shape=(5, 5)) -> TargetPixelFile:
@@ -35,18 +41,21 @@ def cutout(target: str, shape: tuple = (5, 5), sector: int = None, images: int =
     uris = [get_cloud_uri(fn) for fn in filenames]
 
     if asynchronous:
-        async def _get_cutouts():
-            return await asyncio.gather(
-                *[TessImage(uri).async_cutout(col=crd.column, row=crd.row, shape=shape)
-                for uri in uris]
-            )
-        cutouts = asyncio.run(_get_cutouts())
+        cutouts = asyncio.run(_get_cutouts(uris, crd, shape))
     else:
-        cutouts = [TessImage(uri).cutout(col=crd.column, row=crd.row, shape=shape)
+        cutouts = [TessImage(uri, data_offset=20160).cutout(col=crd.column, row=crd.row, shape=shape)
                    for uri in uris]
 
     tpf = TargetPixelFile.from_cutouts(cutouts)
     return tpf.to_lightkurve()
+
+
+async def _get_cutouts(uris, crd, shape):
+    async with aioboto3.client("s3", config=Config(signature_version=UNSIGNED)) as s3:
+        return await asyncio.gather(
+            *[TessImage(uri, data_offset=20160, s3=s3).async_cutout(col=crd.column, row=crd.row, shape=shape)
+            for uri in uris]
+        )
 
 
 def cutout_asteroid(target: str, shape: tuple = (10, 10), sector: int = None, images: int = None, asynchronous=True) -> TargetPixelFile:
