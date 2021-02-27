@@ -15,14 +15,12 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-boto3 = ">=1.16"
-aioboto3 = ">=7.0"
-s3fs = ">=0.4"
 numpy = "^1.20.1"
 astropy = "^4.2"
 tess-locator = "^0.2.1"
 tess-ephem = "^0.1.1"
-lightkurve = "^2.0.2"
+lightkurve = "^2.0.3"
+aioboto3 = "^8.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.0"
