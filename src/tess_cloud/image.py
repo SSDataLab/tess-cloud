@@ -32,7 +32,7 @@ FFI_ROWS = 2078  # i.e. NAXIS2
 
 BYTES_PER_PIX = 4  # float32
 
-#S3FILESYSTEM = s3fs.S3FileSystem(anon=True)
+# S3FILESYSTEM = s3fs.S3FileSystem(anon=True)
 # Use a small block size when reading from S3 to avoid wasting time on excessive buffering
 S3_BLOCK_SIZE = 2880  # bytes
 
@@ -41,26 +41,27 @@ s3client = aioboto3.client("s3", config=Config(signature_version=UNSIGNED))
 
 
 class TessImage:
-
     def __init__(self, url, data_offset=None, s3=None):
         self.url = url
 
         # Infer S3 key and bucket from url
         self.bucket = "stpubdata"
-        if self.url.startswith("stpubdata") or self.url.startswith("s3://stpubdata"): 
+        if self.url.startswith("stpubdata") or self.url.startswith("s3://stpubdata"):
             self.key = self.url.split("stpubdata/")[1]
         else:
             self.key = self.url
 
         if data_offset:
             self._data_offset = data_offset
-        
+
         self.s3 = s3
 
     @property
     def _s3_client(self):
         if not hasattr(self, "__s3_client"):
-            self.__s3_client = boto3.client("s3", config=Config(signature_version=UNSIGNED))
+            self.__s3_client = boto3.client(
+                "s3", config=Config(signature_version=UNSIGNED)
+            )
         return self.__s3_client
 
     @property
@@ -82,13 +83,13 @@ class TessImage:
         length: int
             Number of bytes to read
         """
-        #async with aioboto3.client("s3", config=Config(signature_version=UNSIGNED)) as s3:
+        # async with aioboto3.client("s3", config=Config(signature_version=UNSIGNED)) as s3:
+        range = f"bytes={offset}-{offset+length-1}"
+        # log.debug(f"reading {range} from {self.key.split('/')[-1]}")
         response = await self.s3.get_object(
-            Bucket=self.bucket,
-            Key=self.key,
-            Range='bytes={}-{}'.format(offset, offset+length-1)
+            Bucket=self.bucket, Key=self.key, Range=range
         )
-        return await response['Body'].read()
+        return await response["Body"].read()
 
     def _find_data_offset(self, ext=1) -> int:
         """Returns the byte offset of the start of the data section."""
@@ -151,14 +152,14 @@ class TessImage:
     async def async_cutout_array(self, col, row, shape=(5, 5)) -> np.array:
         blocks = self._find_pixel_blocks(col=col, row=row, shape=shape)
         bytedata = await asyncio.gather(
-                        *[self.async_read_block(offset=blk[0], length=blk[1])
-                          for blk in blocks])
+            *[self.async_read_block(offset=blk[0], length=blk[1]) for blk in blocks]
+        )
         data = []
         for b in bytedata:
             n_pixels = len(b) // BYTES_PER_PIX
             values = struct.unpack(">" + "f" * n_pixels, b)
             data.append(values)
-        return np.array(data)        
+        return np.array(data)
 
     def cutout(self, col, row, shape=(5, 5)) -> "Cutout":
         """Returns a 2D array of pixel values."""
@@ -213,10 +214,12 @@ class Cutout:
 
 def list_images(sector, camera, ccd):
     import s3fs
-    fs = s3fs.S3FileSystem(anon=True)
-    uris = fs.glob(f"stpubdata/tess/public/ffi/s{SECTOR:04d}/*/*/{CAMERA}-{CCD}/**_ffic.fits")
-    return [TessImage(uri) for uri in uris]
 
+    fs = s3fs.S3FileSystem(anon=True)
+    uris = fs.glob(
+        f"stpubdata/tess/public/ffi/s{SECTOR:04d}/*/*/{CAMERA}-{CCD}/**_ffic.fits"
+    )
+    return [TessImage(uri) for uri in uris]
 
 
 def data_offset_lookup(camera=1, ccd=1):
@@ -225,7 +228,11 @@ def data_offset_lookup(camera=1, ccd=1):
     sector = 1
     df = manifest._load_manifest_table()
     while True:
-        sector_ffis = df[df.path.str.match(f"tess/public/ffi/s{sector:04d}/.*s{sector:04d}-{camera}-{ccd}.*ffic.fits")]
+        sector_ffis = df[
+            df.path.str.match(
+                f"tess/public/ffi/s{sector:04d}/.*s{sector:04d}-{camera}-{ccd}.*ffic.fits"
+            )
+        ]
         if len(sector_ffis) == 0:
             break
         uri = sector_ffis.path.iloc[200]

@@ -22,6 +22,7 @@ tess-ephem = ">=0.1.1"
 lightkurve = ">=2.0.3"
 aioboto3 = ">=8.2.0"
 diskcache = ">=5.2.1"
+tqdm = "^4.58.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.0"
