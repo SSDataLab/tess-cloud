@@ -22,6 +22,10 @@ import numpy as np
 from . import log
 
 
+# The maximum number of downloads to await at any given time is controlled using a semaphore.
+# Too many parallel downloads may lead to read timeouts on slow connections.
+MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(100)
+
 # FITS standard specifies that header and data units
 # shall be a multiple of 2880 bytes long.
 FITS_BLOCK_SIZE = 2880  # bytes
@@ -84,12 +88,13 @@ class TessImage:
             Number of bytes to read
         """
         # async with aioboto3.client("s3", config=Config(signature_version=UNSIGNED)) as s3:
-        range = f"bytes={offset}-{offset+length-1}"
-        # log.debug(f"reading {range} from {self.key.split('/')[-1]}")
-        response = await self.s3.get_object(
-            Bucket=self.bucket, Key=self.key, Range=range
-        )
-        return await response["Body"].read()
+        async with MAX_CONCURRENT_DOWNLOADS:  # Use Semaphore to limit the number of concurrent downloads
+            range = f"bytes={offset}-{offset+length-1}"
+            log.debug(f"reading {range} from {self.key.split('/')[-1]}")
+            response = await self.s3.get_object(
+                Bucket=self.bucket, Key=self.key, Range=range
+            )
+            return await response["Body"].read()
 
     def _find_data_offset(self, ext=1) -> int:
         """Returns the byte offset of the start of the data section."""
