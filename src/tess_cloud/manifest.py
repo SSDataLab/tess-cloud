@@ -21,28 +21,36 @@ def get_boto3_client():
     return boto3.client("s3", config=Config(signature_version=UNSIGNED))
 
 
-@lru_cache(maxsize=None)  # in-memory cache
-def _load_manifest_table():
+def _load_manifest():
     """Returns `tess/public/manifest.txt.gz` as a dataframe.
-    
+
     This function is slow!  Use `load_manifest_lookup` for a cached lookup table.
     """
     s3c = get_boto3_client()
     obj = s3c.get_object(Bucket="stpubdata", Key="tess/public/manifest.txt.gz")
-    df = pd.read_fwf(io.BytesIO(obj['Body'].read()),
-                     compression='gzip',
-                     names=['modified_date', 'modified_time', 'size', 'path'])
-    return df    
+    df = pd.read_fwf(
+        io.BytesIO(obj["Body"].read()),
+        compression="gzip",
+        names=["modified_date", "modified_time", "size", "path"],
+    )
+    return df
 
 
-@cache.memoize(expire=86400)  #persistent on-disk cache
+@lru_cache(maxsize=None)  # in-memory cache
+def _load_ffi_manifest():
+    """Returns the calibrated FFI files listed in `tess/public/manifest.txt.gz` as a dataframe."""
+    df = _load_manifest()
+    # Filter out the calibrated FFI FITS files
+    ffi_files = df[df.path.str.endswith("ffic.fits")]
+    return ffi_files
+
+
+@cache.memoize(expire=86400)  # persistent on-disk cache
 def _load_manifest_lookup() -> dict:
     """Returns a hashtable mapping filename => S3 URI"""
-    df = _load_manifest_table()
-    # Filter out the calibrared FFI FITS files
-    fits_files = df[df.path.str.endswith("ffic.fits")]
+    ffi_files = _load_ffi_manifest()
     # Make a lookup hashtable which maps filename => path
-    lookup = dict(zip(fits_files.path.str.split("/").str[-1], fits_files.path))
+    lookup = dict(zip(ffi_files.path.str.split("/").str[-1], ffi_files.path))
     return lookup
 
 
@@ -55,3 +63,12 @@ def get_cloud_uri(filename: str) -> str:
     """Returns the S3 URI of a TESS data product given its filename."""
     lookup = load_manifest_lookup()
     return "s3://stpubdata/" + lookup[filename]
+
+
+def list_images(sector: int, camera: int, ccd: int):
+    """Returns a list of the FFIs for a given sector/camera/ccd."""
+    ffi_files = _load_ffi_manifest()
+    mask = ffi_files.path.str.match(
+        f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+    )
+    return ffi_files[mask].path.str.split("/").str[-1].values
