@@ -20,7 +20,7 @@ from tess_ephem import ephem
 
 from .image import TessImage
 from .targetpixelfile import TargetPixelFile
-from .manifest import get_cloud_uri
+from .manifest import get_uri
 
 
 def cutout_ffi(url, col, row, shape=(5, 5)) -> TargetPixelFile:
@@ -48,7 +48,7 @@ def cutout(
     if images:
         imagelist = imagelist[:images]
     filenames = [img.filename for img in imagelist]
-    uris = [get_cloud_uri(fn) for fn in filenames]
+    uris = [get_uri(fn) for fn in filenames]
     crdlist = TessCoordList([crd]) * len(imagelist)
 
     if asynchronous:
@@ -114,7 +114,7 @@ def cutout_asteroid(
     crdlist = TessCoordList.from_pandas(eph)
     imagelist = crdlist.get_images()
     filenames = [img.filename for img in imagelist]
-    uris = [get_cloud_uri(fn) for fn in filenames]
+    uris = [get_uri(fn) for fn in filenames]
 
     if asynchronous:
         cutouts = asyncio.run(_get_cutouts(uris, crdlist, shape))

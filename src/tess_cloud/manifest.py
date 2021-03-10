@@ -6,11 +6,15 @@ import os
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
+from botocore.exceptions import NoCredentialsError
 
 import diskcache
 import pandas as pd
 
 from . import TESS_S3_BUCKET
+
+
+__all__ = ["list_images", "get_uri"]
 
 # Setup the disk cache
 CACHEDIR = os.path.join(os.path.expanduser("~"), ".tess-cloud-cache")
@@ -59,16 +63,20 @@ def load_manifest_lookup() -> dict:
     return _load_manifest_lookup()
 
 
-def get_cloud_uri(filename: str) -> str:
+def get_uri(filename: str) -> str:
     """Returns the S3 URI of a TESS data product given its filename."""
     lookup = load_manifest_lookup()
     return "s3://stpubdata/" + lookup[filename]
 
 
-def list_images(sector: int, camera: int, ccd: int):
+def list_images(sector: int, camera: int = None, ccd: int = None):
     """Returns a list of the FFIs for a given sector/camera/ccd."""
+    if camera is None:
+        camera = "\d"  # regex
+    if ccd is None:
+        ccd = "\d"  # regex
     ffi_files = _load_ffi_manifest()
     mask = ffi_files.path.str.match(
         f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
     )
-    return ffi_files[mask].path.str.split("/").str[-1].values
+    return ffi_files[mask].path.str.split("/").str[-1].values.tolist()

@@ -8,12 +8,15 @@ log.addHandler(logging.StreamHandler())
 
 TESS_S3_BUCKET = "stpubdata"
 
+from .manifest import list_images, get_uri
 from .image import TessImage
 from .cutout import cutout, cutout_ffi, cutout_asteroid
 
 __all__ = [
+    "list_images",
+    "get_uri",
     "TessImage",
     "cutout",
     "cutout_ffi",
-    "cutout_asteroid"
+    "cutout_asteroid",
 ]
