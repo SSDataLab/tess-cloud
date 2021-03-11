@@ -66,25 +66,24 @@ def cutout(
 
 
 async def _get_cutouts(uris, crdlist, shape):
-    async with aioboto3.client("s3", config=Config(signature_version=UNSIGNED)) as s3:
-        # Create list of functions to be executed
-        flist = [
-            TessImage(uri, data_offset=20160, s3=s3).async_cutout(
-                col=crd.column, row=crd.row, shape=shape
-            )
-            for uri, crd in zip(uris, crdlist)
-        ]
-        # Create tasks for the sake of allowing a progress bar to be shown.
-        # We'd want to use `asyncio.gather(*flist)` here to obtain the results in order,
-        # but the progress par needs `asyncio.as_completed` to work.
-        tasks = [asyncio.create_task(f) for f in flist]
-        for t in tqdm.tqdm(
-            asyncio.as_completed(tasks), total=len(tasks), desc="Downloading cutouts"
-        ):
-            await t
-        # Now take care of getting the results in order
-        results = [t.result() for t in tasks]
-        return results
+    # Create list of functions to be executed
+    flist = [
+        TessImage(uri, data_offset=20160).async_cutout(
+            col=crd.column, row=crd.row, shape=shape
+        )
+        for uri, crd in zip(uris, crdlist)
+    ]
+    # Create tasks for the sake of allowing a progress bar to be shown.
+    # We'd want to use `asyncio.gather(*flist)` here to obtain the results in order,
+    # but the progress par needs `asyncio.as_completed` to work.
+    tasks = [asyncio.create_task(f) for f in flist]
+    for t in tqdm.tqdm(
+        asyncio.as_completed(tasks), total=len(tasks), desc="Downloading cutouts"
+    ):
+        await t
+    # Now take care of getting the results in order
+    results = [t.result() for t in tasks]
+    return results
 
 
 def cutout_asteroid(

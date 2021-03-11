@@ -47,13 +47,14 @@ class TessImage:
         URL or filename of a TESS FFI image on AWS S3.
     """
 
-    def __init__(self, url):
+    def __init__(self, url, data_offset=None):
         if "/" in url:
             self.filename = url.split("/")[-1]
             self._url = url
         else:
             self.filename = url
             self._url = None
+        self._data_offset = data_offset
 
     def __repr__(self):
         return f'TessImage("{self.filename}")'
