@@ -16,12 +16,14 @@ and `diskcache <https://pypi.org/project/diskcache/>`_
 to access the `TESS data set in AWS S3 <https://registry.opendata.aws/tess/>`_
 in a fast, asynchronous, and cached way.
 
+
 Installation
 ------------
 
 .. code-block:: bash
 
     python -m pip install tess-cloud
+
 
 Example use
 -----------
@@ -30,18 +32,35 @@ Retrieve the AWS S3 location of a TESS image:
 
 .. code-block:: python
 
-    >>> from tess_cloud import get_uri
-    >>> get_uri("tess2019199202929-s0014-2-3-0150-s_ffic.fits")
+    >>> import tess_cloud
+    >>> tess_cloud.get_s3_uri("tess2019199202929-s0014-2-3-0150-s_ffic.fits")
     "s3://stpubdata/tess/public/ffi/s0014/2019/199/2-3/tess2019199202929-s0014-2-3-0150-s_ffic.fits"
+
+
+List the images of a TESS sector:
+
+.. code-block:: python
+
+    >>> tess_cloud.list_images(sector=5, camera=2, ccd=3)
+    <TessImageList>
 
 
 Read a TESS image from S3 into local memory:
 
 .. code-block:: python
 
-    >>> from tess_cloud import read
-    >>> read("tess2019199202929-s0014-2-3-0150-s_ffic.fits")
+    >>> from tess_cloud import TessImage
+    >>> img = TessImage("tess2019199202929-s0014-2-3-0150-s_ffic.fits")
+    >>> img.read()
     <astropy.io.fits.HDUList>
+
+
+Read only the header of a TESS image into local memory:
+
+.. code-block:: python
+
+    >>> img.read_header(ext=1)
+    <astropy.io.fits.FitsHeader>
 
 
 Cutout a Target Pixel File for a stationary object:
@@ -60,15 +79,6 @@ Cutout a Target Pixel File centered on a moving asteroid:
     >>> from tess_cloud import cutout_asteroid
     >>> cutout_asteroid("Vesta", start="2019-04-28", stop="2019-06-28)
     TargetPixelFile("Vesta")
-
-
-Read the header of a TESS image into local memory:
-
-.. code-block:: python
-
-    >>> from tess_cloud import read_header
-    >>> read_header(uri, ext=0)
-    <astropy.io.fits.FitsHeader>
 
 
 Documentation

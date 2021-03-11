@@ -8,6 +8,7 @@ import warnings
 from collections import UserList
 from functools import lru_cache
 from typing import Union
+import contextlib
 
 import aioboto3
 from astropy.io.fits import file
@@ -54,7 +55,9 @@ class TessImage:
         else:
             self.filename = url
             self._url = None
-        self._data_offset = data_offset
+
+        if self.data_offset:
+            self._data_offset = data_offset
 
     def __repr__(self):
         return f'TessImage("{self.filename}")'
@@ -90,7 +93,7 @@ class TessImage:
     @property
     def url(self) -> str:
         """Returns the URL for the image at AWS S3."""
-        if not hasattr(self, "_url"):
+        if not self._url:
             self._url = get_s3_uri(self.filename)
         return self._url
 
@@ -100,11 +103,13 @@ class TessImage:
 
     @property
     def data_offset(self):
-        if not hasattr(self, "_data_offset"):
+        if not hasattr(self, "_data_offset") or self._data_offset is None:
             self._data_offset = self._find_data_offset(ext=1)
         return self._data_offset
 
-    async def async_read_block(self, offset: int = None, length: int = None) -> bytes:
+    async def async_read_block(
+        self, offset: int = None, length: int = None, s3client=None
+    ) -> bytes:
         """Read a block of bytes from AWS S3.
 
         Parameters
@@ -114,17 +119,26 @@ class TessImage:
         length: int
             Number of bytes to read
         """
-        async with MAX_CONCURRENT_DOWNLOADS:  # Use Semaphore to limit the number of concurrent downloads
-            async with _default_s3client() as s3client:
-                if length is None or offset is None:
-                    range = ""
-                else:
-                    range = f"bytes={offset}-{offset+length-1}"
-                log.debug(f"reading {range} from {self.filename}")
-                response = await s3client.get_object(
-                    Bucket=TESS_S3_BUCKET, Key=self.key, Range=range
+        if length is None or offset is None:
+            byterange = ""
+        else:
+            byterange = f"bytes={offset}-{offset+length-1}"
+        log.debug(f"reading {range} from {self.filename}")
+
+        # Use Semaphore to limit the number of concurrent downloads
+        async with MAX_CONCURRENT_DOWNLOADS:
+
+            if s3client:
+                resp = await s3client.get_object(
+                    Bucket=TESS_S3_BUCKET, Key=self.key, Range=byterange
                 )
-                return await response["Body"].read()
+                return await resp["Body"].read()
+
+            async with _default_s3client() as s3client:
+                resp = await s3client.get_object(
+                    Bucket=TESS_S3_BUCKET, Key=self.key, Range=byterange
+                )
+                return await resp["Body"].read()
 
     def read_block(self, offset: int = None, length: int = None) -> bytes:
         """Read a block of bytes from AWS S3.
@@ -206,11 +220,16 @@ class TessImage:
             result.append(myrange)
         return result
 
-    async def _async_cutout_array(self, col: int, row: int, shape=(5, 5)) -> np.array:
+    async def _async_cutout_array(
+        self, col: int, row: int, shape=(5, 5), s3client=None
+    ) -> np.array:
         """Returns a 2D array of pixel values."""
         blocks = self._find_pixel_blocks(col=col, row=row, shape=shape)
         bytedata = await asyncio.gather(
-            *[self.async_read_block(offset=blk[0], length=blk[1]) for blk in blocks]
+            *[
+                self.async_read_block(offset=blk[0], length=blk[1], s3client=s3client)
+                for blk in blocks
+            ]
         )
         data = []
         for b in bytedata:
@@ -219,9 +238,13 @@ class TessImage:
             data.append(values)
         return np.array(data)
 
-    async def async_cutout(self, col: int, row: int, shape=(5, 5)) -> "Cutout":
+    async def async_cutout(
+        self, col: int, row: int, shape=(5, 5), s3client=None
+    ) -> "Cutout":
         """Returns a cutout."""
-        flux = await self._async_cutout_array(col=col, row=row, shape=shape)
+        flux = await self._async_cutout_array(
+            col=col, row=row, shape=shape, s3client=s3client
+        )
         time = 0
         cadenceno = 0
         quality = 0
