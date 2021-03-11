@@ -21,7 +21,7 @@ from botocore.config import Config
 from pandas import DataFrame
 
 from . import MAX_CONCURRENT_DOWNLOADS, TESS_S3_BUCKET, log
-from .manifest import get_s3_uri
+from .manifest import get_s3_uri, _load_ffi_manifest
 
 # FITS standard specifies that header and data units
 # shall be a multiple of 2880 bytes long.
@@ -289,6 +289,14 @@ class TessImageList(UserList):
         ]
         return DataFrame(data)
 
+    @classmethod
+    def from_catalog(cls, catalog: DataFrame):
+        # We use raw=True because it gains significant speed
+        series = catalog.apply(
+            lambda x: TessImage(filename=x[0], begin=x[4], end=x[5]), axis=1, raw=True
+        )
+        return cls(series.values)
+
 
 class Cutout:
     def __init__(
@@ -337,3 +345,18 @@ def _data_offset_lookup(camera=1, ccd=1):
         print(f"{sector}: {offset} {uri}")
         sector += 1
     return lookup
+
+
+def list_images(sector: int, camera: int = None, ccd: int = None):
+    """Returns a list of the FFIs for a given sector/camera/ccd."""
+    if camera is None:
+        camera = "\d"  # regex
+    if ccd is None:
+        ccd = "\d"  # regex
+    ffi_files = _load_ffi_manifest()
+    mask = ffi_files.path.str.match(
+        f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+    )
+    return TessImageList(
+        [TessImage("s3://stpubdata/" + x) for x in ffi_files[mask].path.values]
+    )

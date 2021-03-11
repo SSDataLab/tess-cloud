@@ -13,14 +13,15 @@ TESS_S3_BUCKET = "stpubdata"
 # Too many parallel downloads may lead to read timeouts on slow connections.
 MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(100)
 
-from .manifest import list_images, get_s3_uri
-from .image import TessImage
+from .manifest import get_s3_uri
+from .image import TessImage, TessImageList, list_images
 from .cutout import cutout, cutout_ffi, cutout_asteroid
 
 __all__ = [
     "list_images",
     "get_s3_uri",
     "TessImage",
+    "TessImageList",
     "cutout",
     "cutout_ffi",
     "cutout_asteroid",
