@@ -14,7 +14,7 @@ import pandas as pd
 from . import TESS_S3_BUCKET
 
 
-__all__ = ["list_images", "get_uri"]
+__all__ = ["list_images", "get_s3_uri"]
 
 # Setup the disk cache
 CACHEDIR = os.path.join(os.path.expanduser("~"), ".tess-cloud-cache")
@@ -63,7 +63,7 @@ def load_manifest_lookup() -> dict:
     return _load_manifest_lookup()
 
 
-def get_uri(filename: str) -> str:
+def get_s3_uri(filename: str) -> str:
     """Returns the S3 URI of a TESS data product given its filename."""
     lookup = load_manifest_lookup()
     return "s3://stpubdata/" + lookup[filename]

@@ -1,30 +1,26 @@
-"""
-Notes
------
-* Data offset for ext 1 is always 20160 bytes, EXCEPT if the SIP keywords are missing.
-
-
-TODO
-----
-
-
+"""Defines the `TessImage` and `TessImageList` classes.
 """
 import asyncio
+import io
 import re
 import struct
+import warnings
+from collections import UserList
+from functools import lru_cache
+from typing import Union
 
-import boto3
 import aioboto3
+from astropy.io.fits import file
+import numpy as np
+from astropy.io import fits
+from astropy.utils.exceptions import AstropyUserWarning
+from astropy.wcs import WCS
 from botocore import UNSIGNED
 from botocore.config import Config
-import numpy as np
+from pandas import DataFrame
 
-from . import log
-
-
-# The maximum number of downloads to await at any given time is controlled using a semaphore.
-# Too many parallel downloads may lead to read timeouts on slow connections.
-MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(100)
+from . import MAX_CONCURRENT_DOWNLOADS, TESS_S3_BUCKET, log
+from .manifest import get_s3_uri
 
 # FITS standard specifies that header and data units
 # shall be a multiple of 2880 bytes long.
@@ -36,37 +32,70 @@ FFI_ROWS = 2078  # i.e. NAXIS2
 
 BYTES_PER_PIX = 4  # float32
 
-# S3FILESYSTEM = s3fs.S3FileSystem(anon=True)
-# Use a small block size when reading from S3 to avoid wasting time on excessive buffering
-S3_BLOCK_SIZE = 2880  # bytes
-
-
-s3client = aioboto3.client("s3", config=Config(signature_version=UNSIGNED))
+FFI_FILENAME_REGEX = r".*-s(\d+)-(\d)-(\d)-.*"
+MAST_FFI_URL_PREFIX = (
+    "https://mast.stsci.edu/portal/Download/file?uri=mast:TESS/product/"
+)
 
 
 class TessImage:
-    def __init__(self, url, data_offset=None, s3=None):
-        self.url = url
+    """TESS FFI image hosted at AWS S3.
 
-        # Infer S3 key and bucket from url
-        self.bucket = "stpubdata"
-        if self.url.startswith("stpubdata") or self.url.startswith("s3://stpubdata"):
-            self.key = self.url.split("stpubdata/")[1]
+    Parameters
+    ----------
+    url : str
+        URL or filename of a TESS FFI image on AWS S3.
+    """
+
+    def __init__(self, url):
+        if "/" in url:
+            self.filename = url.split("/")[-1]
+            self._url = url
         else:
-            self.key = self.url
+            self.filename = url
+            self._url = None
 
-        if data_offset:
-            self._data_offset = data_offset
+    def __repr__(self):
+        return f'TessImage("{self.filename}")'
 
-        self.s3 = s3
+    def _parse_filename(self) -> dict:
+        """Extracts sector, camera, ccd from a TESS FFI filename."""
+        search = re.search(FFI_FILENAME_REGEX, self.filename)
+        if not search:
+            raise ValueError(f"Unrecognized FFI filename: {self.filename}")
+        return {
+            "sector": int(search.group(1)),
+            "camera": int(search.group(2)),
+            "ccd": int(search.group(3)),
+        }
 
     @property
-    def _s3_client(self):
-        if not hasattr(self, "__s3_client"):
-            self.__s3_client = boto3.client(
-                "s3", config=Config(signature_version=UNSIGNED)
-            )
-        return self.__s3_client
+    def sector(self) -> int:
+        return self._parse_filename()["sector"]
+
+    @property
+    def camera(self) -> int:
+        return self._parse_filename()["camera"]
+
+    @property
+    def ccd(self) -> int:
+        return self._parse_filename()["ccd"]
+
+    @property
+    def url_mast(self) -> str:
+        """Returns the URL for the image at MAST."""
+        return MAST_FFI_URL_PREFIX + self.filename
+
+    @property
+    def url(self) -> str:
+        """Returns the URL for the image at AWS S3."""
+        if not hasattr(self, "_url"):
+            self._url = get_s3_uri(self.filename)
+        return self._url
+
+    @property
+    def key(self) -> str:
+        return self.url.split(f"{TESS_S3_BUCKET}/")[1]
 
     @property
     def data_offset(self):
@@ -74,11 +103,8 @@ class TessImage:
             self._data_offset = self._find_data_offset(ext=1)
         return self._data_offset
 
-    def read_header(self):
-        return self.read_block(0, self.data_offset)
-
-    async def async_read_block(self, offset: int, length: int) -> bytes:
-        """Alternative async implementation using aioboto3.
+    async def async_read_block(self, offset: int = None, length: int = None) -> bytes:
+        """Read a block of bytes from AWS S3.
 
         Parameters
         ----------
@@ -87,16 +113,52 @@ class TessImage:
         length: int
             Number of bytes to read
         """
-        # async with aioboto3.client("s3", config=Config(signature_version=UNSIGNED)) as s3:
         async with MAX_CONCURRENT_DOWNLOADS:  # Use Semaphore to limit the number of concurrent downloads
-            range = f"bytes={offset}-{offset+length-1}"
-            log.debug(f"reading {range} from {self.key.split('/')[-1]}")
-            response = await self.s3.get_object(
-                Bucket=self.bucket, Key=self.key, Range=range
-            )
-            return await response["Body"].read()
+            async with _default_s3client() as s3client:
+                if length is None or offset is None:
+                    range = ""
+                else:
+                    range = f"bytes={offset}-{offset+length-1}"
+                log.debug(f"reading {range} from {self.filename}")
+                response = await s3client.get_object(
+                    Bucket=TESS_S3_BUCKET, Key=self.key, Range=range
+                )
+                return await response["Body"].read()
 
-    def _find_data_offset(self, ext=1) -> int:
+    def read_block(self, offset: int = None, length: int = None) -> bytes:
+        """Read a block of bytes from AWS S3.
+
+        Parameters
+        ----------
+        offset: int
+            Byte offset to start read
+        length: int
+            Number of bytes to read
+        """
+        return _sync_call(self.async_read_block, offset=offset, length=length)
+
+    def read_header(self, ext=1) -> fits.Header:
+        content = self.read_block(0, self.data_offset)
+        # Open the file and extract the fits header
+        with warnings.catch_warnings():
+            # Ignore "File may have been truncated" warning
+            warnings.simplefilter("ignore", AstropyUserWarning)
+            hdr = fits.getheader(io.BytesIO(content), ext=ext)
+        return hdr
+
+    def read_wcs(self) -> WCS:
+        """Downloads the image WCS."""
+        return WCS(self.read_header(ext=1))
+
+    async def async_read(self) -> fits.HDUList:
+        """Open the entire image as an AstroPy HDUList object."""
+        return fits.open(io.BytesIO(await self.async_read_block()))
+
+    def read(self) -> fits.HDUList:
+        """Open the entire image as an AstroPy HDUList object."""
+        return _sync_call(self.async_read)
+
+    def _find_data_offset(self, ext: int = 1) -> int:
         """Returns the byte offset of the start of the data section."""
         # We'll assume the data starts within the first 10 FITS BLOCKs.
         # This means the method will currently only work for extensions 0 and 1 of a TESS FFI file.
@@ -115,12 +177,12 @@ class TessImage:
                 current_ext += 1
         return None
 
-    def _find_pixel_offset(self, col, row) -> int:
+    def _find_pixel_offset(self, col: int, row: int) -> int:
         """Returns the byte offset of a specific pixel position."""
         pixel_offset = col + row * FFI_COLUMNS
         return self.data_offset + BYTES_PER_PIX * pixel_offset
 
-    def _find_pixel_blocks(self, col, row, shape=(1, 1)) -> list:
+    def _find_pixel_blocks(self, col: int, row: int, shape=(1, 1)) -> list:
         """Returns the byte ranges of a rectangle."""
         result = []
         col1 = int(col) - shape[0] // 2
@@ -143,18 +205,8 @@ class TessImage:
             result.append(myrange)
         return result
 
-    def cutout_array(self, col, row, shape=(5, 5)) -> np.array:
+    async def _async_cutout_array(self, col: int, row: int, shape=(5, 5)) -> np.array:
         """Returns a 2D array of pixel values."""
-        blocks = self._find_pixel_blocks(col=col, row=row, shape=shape)
-        bytedata = self.read_blocks(blocks)
-        data = []
-        for b in bytedata:
-            n_pixels = len(b) // BYTES_PER_PIX
-            values = struct.unpack(">" + "f" * n_pixels, b)
-            data.append(values)
-        return np.array(data)
-
-    async def async_cutout_array(self, col, row, shape=(5, 5)) -> np.array:
         blocks = self._find_pixel_blocks(col=col, row=row, shape=shape)
         bytedata = await asyncio.gather(
             *[self.async_read_block(offset=blk[0], length=blk[1]) for blk in blocks]
@@ -166,9 +218,9 @@ class TessImage:
             data.append(values)
         return np.array(data)
 
-    def cutout(self, col, row, shape=(5, 5)) -> "Cutout":
-        """Returns a 2D array of pixel values."""
-        flux = self.cutout_array(col=col, row=row, shape=shape)
+    async def async_cutout(self, col: int, row: int, shape=(5, 5)) -> "Cutout":
+        """Returns a cutout."""
+        flux = await self._async_cutout_array(col=col, row=row, shape=shape)
         time = 0
         cadenceno = 0
         quality = 0
@@ -182,21 +234,36 @@ class TessImage:
             quality=quality,
         )
 
-    async def async_cutout(self, col, row, shape=(5, 5)) -> "Cutout":
-        """Returns a 2D array of pixel values."""
-        flux = await self.async_cutout_array(col=col, row=row, shape=shape)
-        time = 0
-        cadenceno = 0
-        quality = 0
-        flux_err = flux.copy()
-        flux_err[:] = np.nan
-        return Cutout(
-            time=time,
-            cadenceno=cadenceno,
-            flux=flux,
-            flux_err=flux_err,
-            quality=quality,
-        )
+    def cutout(self, col, row, shape=(5, 5)) -> "Cutout":
+        """Returns a cutout."""
+        return _sync_call(self.async_cutout, col=col, row=row, shape=shape)
+
+
+class TessImageList(UserList):
+    def __repr__(self):
+        x = []
+        if len(self) > 8:
+            show = [0, 1, 2, 3, -4, -3, -2, -1]
+        else:
+            show = range(len(self))
+        for idx in show:
+            x.append(str(self[idx]))
+        if len(self) > 8:
+            x.insert(4, "...")
+        return f"List of {len(self)} images\n ↳[" + "\n   ".join(x) + "]"
+
+    def to_pandas(self) -> DataFrame:
+        data = [
+            {
+                "filename": im.filename,
+                "sector": im.sector,
+                "camera": im.camera,
+                "ccd": im.ccd,
+                "url_mast": im.url_mast,
+            }
+            for im in self
+        ]
+        return DataFrame(data)
 
 
 class Cutout:
@@ -217,18 +284,18 @@ class Cutout:
         self.meta = meta
 
 
-def list_images(sector, camera, ccd):
-    import s3fs
-
-    fs = s3fs.S3FileSystem(anon=True)
-    uris = fs.glob(
-        f"stpubdata/tess/public/ffi/s{SECTOR:04d}/*/*/{CAMERA}-{CCD}/**_ffic.fits"
-    )
-    return [TessImage(uri) for uri in uris]
+def _default_s3client():
+    return aioboto3.client("s3", config=Config(signature_version=UNSIGNED))
 
 
-def data_offset_lookup(camera=1, ccd=1):
+def _sync_call(func, *args, **kwargs):
+    return asyncio.run(func(*args, **kwargs))
+
+
+def _data_offset_lookup(camera=1, ccd=1):
     """Returns a lookup table mapping sector => data offset."""
+    from . import manifest
+
     lookup = {}
     sector = 1
     df = manifest._load_manifest_table()

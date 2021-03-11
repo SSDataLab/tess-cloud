@@ -20,7 +20,7 @@ from tess_ephem import ephem
 
 from .image import TessImage
 from .targetpixelfile import TargetPixelFile
-from .manifest import get_uri
+from .manifest import get_s3_uri as get_uri
 
 
 def cutout_ffi(url, col, row, shape=(5, 5)) -> TargetPixelFile:
