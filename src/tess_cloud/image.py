@@ -56,7 +56,7 @@ class TessImage:
             self.filename = url
             self._url = None
 
-        if self.data_offset:
+        if data_offset:
             self._data_offset = data_offset
 
     def __repr__(self):
@@ -103,7 +103,7 @@ class TessImage:
 
     @property
     def data_offset(self):
-        if not hasattr(self, "_data_offset") or self._data_offset is None:
+        if not hasattr(self, "_data_offset"):
             self._data_offset = self._find_data_offset(ext=1)
         return self._data_offset
 
