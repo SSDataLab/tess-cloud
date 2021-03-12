@@ -66,7 +66,9 @@ class TessImage:
                 data_ext = 1
         self.data_ext = data_ext
 
-        if data_offset:
+        if data_offset is None and "hlsp_tica" in url:
+            self._data_offset = 17280
+        elif data_offset:
             self._data_offset = data_offset
 
     def __repr__(self):
