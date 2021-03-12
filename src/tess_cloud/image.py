@@ -10,6 +10,7 @@ from functools import lru_cache
 from typing import Union
 import contextlib
 
+import aiohttp
 import aioboto3
 from astropy.io.fits import file
 import numpy as np
@@ -19,9 +20,11 @@ from astropy.wcs import WCS
 from botocore import UNSIGNED
 from botocore.config import Config
 from pandas import DataFrame
+import tqdm
 
 from . import MAX_CONCURRENT_DOWNLOADS, TESS_S3_BUCKET, log
 from .manifest import get_s3_uri, _load_ffi_manifest
+from .targetpixelfile import TargetPixelFile
 
 # FITS standard specifies that header and data units
 # shall be a multiple of 2880 bytes long.
@@ -48,13 +51,20 @@ class TessImage:
         URL or filename of a TESS FFI image on AWS S3.
     """
 
-    def __init__(self, url, data_offset=None):
+    def __init__(self, url, data_ext=None, data_offset=None):
         if "/" in url:
             self.filename = url.split("/")[-1]
             self._url = url
         else:
             self.filename = url
             self._url = None
+
+        if data_ext is None:
+            if "hlsp_tica" in url:
+                data_ext = 0
+            else:
+                data_ext = 1
+        self.data_ext = data_ext
 
         if data_offset:
             self._data_offset = data_offset
@@ -97,20 +107,57 @@ class TessImage:
             self._url = get_s3_uri(self.filename)
         return self._url
 
-    @property
-    def key(self) -> str:
+    @lru_cache
+    def _get_s3_key(self) -> str:
         return self.url.split(f"{TESS_S3_BUCKET}/")[1]
 
     @property
     def data_offset(self):
         if not hasattr(self, "_data_offset"):
-            self._data_offset = self._find_data_offset(ext=1)
+            self._data_offset = self._find_data_offset(ext=self.data_ext)
         return self._data_offset
 
+    async def _async_read_block_http(
+        self, offset: int = None, length: int = None, client=None
+    ):
+        headers = {}
+        if not (offset is None or length is None):
+            headers["Range"] = f"bytes={offset}-{offset+length-1}"
+
+        if client:
+            async with client.get(self.url, headers=headers) as resp:
+                return await resp.read()
+
+        # Making a new client for every request is slow; avoid if possible!
+        async with aiohttp.ClientSession() as client:
+            async with client.get(self.url, headers=headers) as resp:
+                return await resp.read()
+
+    async def _async_read_block_s3(
+        self, offset: int = None, length: int = None, client=None
+    ):
+        if length is None or offset is None:
+            byterange = ""
+        else:
+            byterange = f"bytes={offset}-{offset+length-1}"
+
+        if client:
+            resp = await client.get_object(
+                Bucket=TESS_S3_BUCKET, Key=self._get_s3_key(), Range=byterange
+            )
+            return await resp["Body"].read()
+
+        # Making a new client for every request is slow; avoid if possible!
+        async with _default_s3client() as client:
+            resp = await client.get_object(
+                Bucket=TESS_S3_BUCKET, Key=self._get_s3_key(), Range=byterange
+            )
+            return await resp["Body"].read()
+
     async def async_read_block(
-        self, offset: int = None, length: int = None, s3client=None
+        self, offset: int = None, length: int = None, client=None
     ) -> bytes:
-        """Read a block of bytes from AWS S3.
+        """Read a block of bytes.
 
         Parameters
         ----------
@@ -119,26 +166,14 @@ class TessImage:
         length: int
             Number of bytes to read
         """
-        if length is None or offset is None:
-            byterange = ""
-        else:
-            byterange = f"bytes={offset}-{offset+length-1}"
-        log.debug(f"reading {range} from {self.filename}")
-
         # Use Semaphore to limit the number of concurrent downloads
         async with MAX_CONCURRENT_DOWNLOADS:
-
-            if s3client:
-                resp = await s3client.get_object(
-                    Bucket=TESS_S3_BUCKET, Key=self.key, Range=byterange
-                )
-                return await resp["Body"].read()
-
-            async with _default_s3client() as s3client:
-                resp = await s3client.get_object(
-                    Bucket=TESS_S3_BUCKET, Key=self.key, Range=byterange
-                )
-                return await resp["Body"].read()
+            if self.url[:2] == "s3":
+                return await self._async_read_block_s3(offset, length, client)
+            elif self.url[:4] == "http":
+                return await self._async_read_block_http(offset, length, client)
+            else:
+                raise ValueError("url must start with http:// or s3://")
 
     def read_block(self, offset: int = None, length: int = None) -> bytes:
         """Read a block of bytes from AWS S3.
@@ -152,7 +187,9 @@ class TessImage:
         """
         return _sync_call(self.async_read_block, offset=offset, length=length)
 
-    def read_header(self, ext=1) -> fits.Header:
+    def read_header(self, ext: int = None) -> fits.Header:
+        if ext is None:
+            ext = self.data_ext
         content = self.read_block(0, self.data_offset)
         # Open the file and extract the fits header
         with warnings.catch_warnings():
@@ -161,9 +198,11 @@ class TessImage:
             hdr = fits.getheader(io.BytesIO(content), ext=ext)
         return hdr
 
-    def read_wcs(self) -> WCS:
+    def read_wcs(self, ext: int = None) -> WCS:
         """Downloads the image WCS."""
-        return WCS(self.read_header(ext=1))
+        if ext is None:
+            ext = self.data_ext
+        return WCS(self.read_header(ext=ext))
 
     async def async_read(self) -> fits.HDUList:
         """Open the entire image as an AstroPy HDUList object."""
@@ -173,8 +212,10 @@ class TessImage:
         """Open the entire image as an AstroPy HDUList object."""
         return _sync_call(self.async_read)
 
-    def _find_data_offset(self, ext: int = 1) -> int:
+    def _find_data_offset(self, ext: int = None) -> int:
         """Returns the byte offset of the start of the data section."""
+        if ext is None:
+            ext = self.data_ext
         # We'll assume the data starts within the first 10 FITS BLOCKs.
         # This means the method will currently only work for extensions 0 and 1 of a TESS FFI file.
         max_seek = FITS_BLOCK_SIZE * 12
@@ -221,13 +262,13 @@ class TessImage:
         return result
 
     async def _async_cutout_array(
-        self, col: int, row: int, shape=(5, 5), s3client=None
+        self, col: int, row: int, shape=(5, 5), client=None
     ) -> np.array:
         """Returns a 2D array of pixel values."""
         blocks = self._find_pixel_blocks(col=col, row=row, shape=shape)
         bytedata = await asyncio.gather(
             *[
-                self.async_read_block(offset=blk[0], length=blk[1], s3client=s3client)
+                self.async_read_block(offset=blk[0], length=blk[1], client=client)
                 for blk in blocks
             ]
         )
@@ -239,11 +280,11 @@ class TessImage:
         return np.array(data)
 
     async def async_cutout(
-        self, col: int, row: int, shape=(5, 5), s3client=None
+        self, col: int, row: int, shape=(5, 5), client=None
     ) -> "Cutout":
         """Returns a cutout."""
         flux = await self._async_cutout_array(
-            col=col, row=row, shape=shape, s3client=s3client
+            col=col, row=row, shape=shape, client=client
         )
         time = 0
         cadenceno = 0
@@ -296,6 +337,32 @@ class TessImageList(UserList):
             lambda x: TessImage(filename=x[0], begin=x[4], end=x[5]), axis=1, raw=True
         )
         return cls(series.values)
+
+    async def _get_cutouts(self, col, row, shape):
+        async with aiohttp.ClientSession() as client:
+            # Create list of functions to be executed
+            flist = [
+                img.async_cutout(col=col, row=row, shape=shape, client=client)
+                for img in self
+            ]
+            # Create tasks for the sake of allowing a progress bar to be shown.
+            # We'd want to use `asyncio.gather(*flist)` here to obtain the results in order,
+            # but the progress bar needs `asyncio.as_completed` to work.
+            tasks = [asyncio.create_task(f) for f in flist]
+            for t in tqdm.tqdm(
+                asyncio.as_completed(tasks),
+                total=len(tasks),
+                desc="Downloading cutouts",
+            ):
+                await t
+            # Now take care of getting the results in order
+            results = [t.result() for t in tasks]
+            return results
+
+    def cutout(self, col: int, row: int, shape=(5, 5)):
+        cutouts = asyncio.run(self._get_cutouts(col=col, row=row, shape=shape))
+        tpf = TargetPixelFile.from_cutouts(cutouts)
+        return tpf.to_lightkurve()
 
 
 class Cutout:

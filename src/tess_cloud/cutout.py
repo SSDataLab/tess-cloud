@@ -72,7 +72,7 @@ async def _get_cutouts(uris, crdlist, shape):
         # Create list of functions to be executed
         flist = [
             TessImage(uri, data_offset=20160).async_cutout(
-                col=crd.column, row=crd.row, shape=shape, s3client=s3client
+                col=crd.column, row=crd.row, shape=shape, client=s3client
             )
             for uri, crd in zip(uris, crdlist)
         ]
