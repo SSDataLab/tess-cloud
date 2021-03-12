@@ -109,7 +109,7 @@ class TessImage:
             self._url = get_s3_uri(self.filename)
         return self._url
 
-    @lru_cache
+    @lru_cache()
     def _get_s3_key(self) -> str:
         return self.url.split(f"{TESS_S3_BUCKET}/")[1]
 
