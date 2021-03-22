@@ -25,6 +25,8 @@ import lightkurve as lk
 
 
 class TargetPixelFile:
+    """Class representation of a Target Pixel File (TPF)."""
+
     def __init__(
         self,
         time: array,
@@ -43,9 +45,9 @@ class TargetPixelFile:
         self.wcs = wcs
         if meta is None:
             meta = {}
-            meta['TELESCOP'] = 'TESS'
-            meta['ORIGIN'] = 'tess_cloud'
-            meta['CREATOR'] = 'tess_cloud.targetpixelfile'
+            meta["TELESCOP"] = "TESS"
+            meta["ORIGIN"] = "tess_cloud"
+            meta["CREATOR"] = "tess_cloud.targetpixelfile"
             meta["DATE"] = datetime.now().strftime("%Y-%m-%d")
         self.meta = meta
 

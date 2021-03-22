@@ -32,10 +32,11 @@ def _load_manifest():
     """
     s3c = get_boto3_client()
     obj = s3c.get_object(Bucket="stpubdata", Key="tess/public/manifest.txt.gz")
-    df = pd.read_fwf(
+    df = pd.read_table(
         io.BytesIO(obj["Body"].read()),
         compression="gzip",
         names=["modified_date", "modified_time", "size", "path"],
+        delim_whitespace=True,
     )
     return df
 
@@ -46,6 +47,15 @@ def _load_ffi_manifest():
     df = _load_manifest()
     # Filter out the calibrated FFI FITS files
     ffi_files = df[df.path.str.endswith("ffic.fits")]
+    return ffi_files
+
+
+@lru_cache(maxsize=None)  # in-memory cache
+def _load_tpf_manifest():
+    """Returns the Target Pixel Files listed in `tess/public/manifest.txt.gz` as a dataframe."""
+    df = _load_manifest()
+    # Filter out the calibrated FFI FITS files
+    ffi_files = df[df.path.str.endswith("tp.fits")]
     return ffi_files
 
 
