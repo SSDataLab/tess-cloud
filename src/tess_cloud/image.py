@@ -242,24 +242,22 @@ class TessImage:
                 current_ext += 1
         return None
 
-    async def _find_pixel_offset(self, col: int, row: int) -> int:
+    async def _find_pixel_offset(self, column: int, row: int) -> int:
         """Returns the byte offset of a specific pixel position."""
         data_offset = await self._find_data_offset(ext=self.data_ext)
-        pixel_offset = col + row * FFI_COLUMNS
+        pixel_offset = column + row * FFI_COLUMNS
         return data_offset + BYTES_PER_PIX * pixel_offset
 
-    async def _find_pixel_blocks(self, col: int, row: int, shape=(1, 1)) -> list:
+    async def _find_pixel_blocks(self, column: int, row: int, shape=(1, 1)) -> list:
         """Returns the byte ranges of a rectangle."""
         result = []
-        col1 = int(col) - shape[0] // 2
+        col1 = int(column) - shape[0] // 2
         row1 = int(row) - shape[1] // 2
 
         if col1 < 0 or col1 >= FFI_COLUMNS:
-            raise ValueError(
-                f"column out of bounds (col must be in range 0-{FFI_COLUMNS})"
-            )
+            raise ValueError(f"column out of bounds (must be in range 0-{FFI_COLUMNS})")
         if row1 < 0 or row1 >= FFI_ROWS:
-            raise ValueError(f"row out of bounds (row must be in range 0-{FFI_ROWS})")
+            raise ValueError(f"row out of bounds (must be in range 0-{FFI_ROWS})")
 
         for myrow in range(row1, row1 + shape[1]):
             begin = await self._find_pixel_offset(col1, myrow)
@@ -278,10 +276,10 @@ class TessImage:
         max_tries=3,
     )
     async def _async_cutout_array(
-        self, col: int, row: int, shape=(5, 5), client=None
+        self, column: int, row: int, shape=(5, 5), client=None
     ) -> np.array:
         """Returns a 2D array of pixel values."""
-        blocks = await self._find_pixel_blocks(col=col, row=row, shape=shape)
+        blocks = await self._find_pixel_blocks(column=column, row=row, shape=shape)
         bytedata = await asyncio.gather(
             *[
                 self.async_read_block(offset=blk[0], length=blk[1], client=client)
@@ -296,12 +294,12 @@ class TessImage:
         return np.array(data)
 
     async def async_cutout(
-        self, col: int, row: int, shape=(5, 5), client=None
+        self, column: int, row: int, shape=(5, 5), client=None
     ) -> "Cutout":
         """Returns a cutout."""
         async with MAX_CONCURRENT_CUTOUTS:
             flux = await self._async_cutout_array(
-                col=col, row=row, shape=shape, client=client
+                column=column, row=row, shape=shape, client=client
             )
         time = 0
         cadenceno = 0
@@ -316,9 +314,9 @@ class TessImage:
             quality=quality,
         )
 
-    def cutout(self, col, row, shape=(5, 5)) -> "Cutout":
+    def cutout(self, column, row, shape=(5, 5)) -> "Cutout":
         """Returns a cutout."""
-        return _sync_call(self.async_cutout, col=col, row=row, shape=shape)
+        return _sync_call(self.async_cutout, column=column, row=row, shape=shape)
 
 
 class TessImageList(UserList):
@@ -355,11 +353,11 @@ class TessImageList(UserList):
         )
         return cls(series.values)
 
-    async def _get_cutouts(self, col, row, shape):
+    async def _get_cutouts(self, column, row, shape):
         async with self[0]._get_default_client() as client:
             # Create list of functions to be executed
             flist = [
-                img.async_cutout(col=col, row=row, shape=shape, client=client)
+                img.async_cutout(column=column, row=row, shape=shape, client=client)
                 for img in self
             ]
             # Create tasks for the sake of allowing a progress bar to be shown.
@@ -376,8 +374,8 @@ class TessImageList(UserList):
             results = [t.result() for t in tasks]
             return results
 
-    def cutout(self, col: int, row: int, shape=(5, 5)):
-        cutouts = asyncio.run(self._get_cutouts(col=col, row=row, shape=shape))
+    def cutout(self, column: int, row: int, shape=(5, 5)):
+        cutouts = asyncio.run(self._get_cutouts(column=column, row=row, shape=shape))
         tpf = TargetPixelFile.from_cutouts(cutouts)
         return tpf.to_lightkurve()
 

@@ -23,10 +23,10 @@ from .targetpixelfile import TargetPixelFile
 from .manifest import get_s3_uri as get_uri
 
 
-def cutout_ffi(url, col, row, shape=(5, 5)) -> TargetPixelFile:
+def cutout_ffi(url, column, row, shape=(5, 5)) -> TargetPixelFile:
     """Retrieve a section from an FFI."""
     img = TessImage(url)
-    cutout = img.cutout(col=col, row=row, shape=shape)
+    cutout = img.cutout(column=column, row=row, shape=shape)
     return TargetPixelFile.from_cutouts([cutout]).to_lightkurve()
 
 
@@ -55,9 +55,7 @@ def cutout(
         cutouts = asyncio.run(_get_cutouts(uris, crdlist, shape))
     else:
         cutouts = [
-            TessImage(uri, data_offset=20160).cutout(
-                col=crd.column, row=crd.row, shape=shape
-            )
+            TessImage(uri).cutout(column=crd.column, row=crd.row, shape=shape)
             for uri, crd in zip(uris, crdlist)
         ]
 
@@ -72,7 +70,7 @@ async def _get_cutouts(uris, crdlist, shape):
         # Create list of functions to be executed
         flist = [
             TessImage(uri, data_offset=20160).async_cutout(
-                col=crd.column, row=crd.row, shape=shape, client=s3client
+                column=crd.column, row=crd.row, shape=shape, client=s3client
             )
             for uri, crd in zip(uris, crdlist)
         ]
@@ -122,9 +120,7 @@ def cutout_asteroid(
         cutouts = asyncio.run(_get_cutouts(uris, crdlist, shape))
     else:
         cutouts = [
-            TessImage(uri, data_offset=20160).cutout(
-                col=crd.column, row=crd.row, shape=shape
-            )
+            TessImage(uri).cutout(column=crd.column, row=crd.row, shape=shape)
             for uri, crd in zip(uris, crdlist)
         ]
 
