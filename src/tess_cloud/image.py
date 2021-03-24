@@ -219,7 +219,15 @@ class TessImage:
         return _sync_call(self.async_read)
 
     async def _find_data_offset(self, ext: int = None) -> int:
-        """Returns the byte offset of the start of the data section."""
+        """Returns the byte offset of the start of the data section.
+
+        Unfortunately we cannot assume that the data_offset is consistent
+        across images of a similar series, because the number of WCS keywords
+        tends to change.  For example, keyword "AP_0_6" is present in:
+            https://archive.stsci.edu/hlsps/tica/s0035/cam1-ccd1/hlsp_tica_tess_ffi_s0035-o1-00149185-cam1-ccd1_tess_v01_img.fits
+        but not in
+            https://archive.stsci.edu/hlsps/tica/s0035/cam1-ccd1/hlsp_tica_tess_ffi_s0035-o1-00147989-cam1-ccd1_tess_v01_img.fits
+        """
         if self.data_offset:
             return self.data_offset
         if ext is None:
