@@ -29,6 +29,18 @@ def list_spoc_images(
 
 
 def _list_spoc_images_mast(sector, camera, ccd):
+    """
+    Caution: this returns URLs of the form
+
+       https://mast.stsci.edu/api/v0.1/Download/file/?uri=mast:TESS/product/tess2019086105934-s0010-1-1-0140-s_ffic.fits
+
+    which are not suitable for tess-cloud because concurrent downloads from this sever yield a lot of HTTP 503 errors.
+    We'll want to write an extra function to convert these URLs to the form:
+
+       https://archive.stsci.edu/missions/tess/ffi/s0010/2019/086/1-1/tess2019086105934-s0010-1-1-0140-s_ffic.fits
+
+    Which allows for many more concurrent requests.
+    """
     df = _get_mast_bundle(sector=sector)
     mask = df.url.str.match(f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits")
     return TessImageList([TessImage(url) for url in df[mask].url.values])
