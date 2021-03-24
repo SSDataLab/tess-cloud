@@ -1,0 +1,7 @@
+site_name: tess-cloud
+nav:
+    - Home: index.md
+    - About: about.md
+theme:
+  name: material
+repo_url: https://github.com/SSDataLab/tess-cloud

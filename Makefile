@@ -30,3 +30,7 @@ mypy:
 # Order the imports using `isort`
 isort:
 	$(CMD) isort $(PYMODULE) $(TESTS)
+
+# Run the mkdocs dev server
+docserve:
+	$(CMD) mkdocs serve
