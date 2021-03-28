@@ -53,7 +53,7 @@ async def async_get_spoc_metadata(sector=1):
     return pd.DataFrame([t.result() for t in tasks])
 
 
-def list_spoc_urls(sector=1, provider="mast"):
+def list_spoc_urls(sector=1, provider="aws"):
     fs = s3fs.S3FileSystem(anon=True)
     # urls = fs.glob(
     #    f"stpubdata/tess/public/ffi/s{sector:04d}/*/*/{camera}-{ccd}/**_ffic.fits"
