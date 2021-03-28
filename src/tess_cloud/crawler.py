@@ -65,6 +65,13 @@ def list_spoc_urls(sector=1, provider="mast"):
 
 
 def _aws_to_mast_url(url):
+    """Convert a AWS S3 URI into a MAST URL.
+
+    For example, the following S3 URI:
+        s3://stpubdata/tess/public/ffi/s0020/2019/358/1-1/tess2019358235923-s0020-1-1-0165-s_ffic.fits
+    will be translated into this MAST URL:
+        https://archive.stsci.edu/missions/tess/ffi/s0020/2019/358/1-1/tess2019358235923-s0020-1-1-0165-s_ffic.fits
+    """
     return url.replace(
         "stpubdata/tess/public", "https://archive.stsci.edu/missions/tess"
     )
