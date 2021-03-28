@@ -2,7 +2,7 @@
 
 Usage
 -----
-Use `save_spoc_ffi_catalog()` to create a catalog of TESS FFI images.
+Use `save_spoc_ffi_catalog(sector)` to create a catalog of TESS FFI images.
 
 """
 import asyncio
@@ -26,7 +26,7 @@ def save_spoc_ffi_catalog(sector, path=None, overwrite=False) -> DataFrame:
             f"Skipping sector {sector}: file already exists ({path}).  Use `overwrite=True` to force-update."
         )
         return None
-    df = get_spoc_metadata(sector=sector)
+    df = asyncio.run(async_get_spoc_metadata(sector=sector))
     log.info(f"Started writing {path}")
     df.to_parquet(path, compression="gzip")
     log.info(f"Finished writing {path}")
@@ -36,10 +36,6 @@ def save_spoc_ffi_catalog(sector, path=None, overwrite=False) -> DataFrame:
 def _spoc_catalog_path(sector: int) -> Path:
     """Returns the filename of the FFI catalog of a given sector."""
     return DATADIR / Path(f"tess-s{sector:04d}-spoc-ffi-catalog.parquet")
-
-
-def get_spoc_metadata(sector=1):
-    return asyncio.run(async_get_spoc_metadata(sector=sector))
 
 
 async def async_get_spoc_metadata(sector=1):

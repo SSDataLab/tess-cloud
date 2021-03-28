@@ -1,4 +1,11 @@
-# TODO: Feb 27: MANIFEST on S3 doesn't appear to have been updated since sector 26.  Caution!
+"""
+Tools to interact with s3://stpubdata/tess/public/manifest.txt.gz
+
+Notes
+-----
+As of Feb 27, 2021, the manifest file does not appear to have been
+updated since sector 26, so these functions won't work for recent sectors.
+"""
 from functools import lru_cache
 import io
 import os

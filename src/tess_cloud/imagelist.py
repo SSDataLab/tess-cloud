@@ -1,6 +1,8 @@
 import asyncio
 from collections import UserList
+from typing import Union
 
+from astropy.time import Time
 from pandas import DataFrame
 import tqdm
 
@@ -38,7 +40,7 @@ class TessImageList(UserList):
     def from_catalog(cls, catalog: DataFrame):
         # We use raw=True because it gains significant speed
         series = catalog.apply(
-            lambda x: TessImage(filename=x[0], begin=x[4], end=x[5]), axis=1, raw=True
+            lambda x: TessImage(url=x[0], data_offset=x[7]), axis=1, raw=True
         )
         return cls(series.values)
 
@@ -70,7 +72,12 @@ class TessImageList(UserList):
 
 
 def list_images(
-    sector=1, camera=1, ccd=1, author="spoc", provider=None
+    sector: int = 1,
+    camera: int = 1,
+    ccd: int = 1,
+    time: Union[str, Time] = None,
+    author: str = "spoc",
+    provider: str = None,
 ) -> TessImageList:
     """Returns the list of FFI images."""
     if author == "tica":
@@ -81,5 +88,5 @@ def list_images(
         from . import spoc
 
         return spoc.list_spoc_images(
-            sector=sector, camera=camera, ccd=ccd, provider=provider
+            sector=sector, camera=camera, ccd=ccd, time=time, provider=provider
         )

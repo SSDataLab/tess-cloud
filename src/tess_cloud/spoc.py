@@ -1,15 +1,28 @@
 from functools import lru_cache
 from urllib.error import HTTPError
+from typing import Union
 
+from astropy.time import Time
 import pandas as pd
+from pandas import DataFrame
+import numpy as np
 
 from .manifest import _load_ffi_manifest
 from .image import TessImage
 from .imagelist import TessImageList
+from . import crawler, log
+
+
+SPOC_AWS_PREFIX = "s3://stpubdata/tess/public/ffi"
+SPOC_MAST_PREFIX = "https://archive.stsci.edu/missions/tess/ffi"
 
 
 def list_spoc_images(
-    sector: int = 1, camera: int = None, ccd: int = None, provider: str = None
+    sector: int = 1,
+    camera: int = None,
+    ccd: int = None,
+    time: Union[str, Time] = None,
+    provider: str = None,
 ) -> TessImageList:
     """Returns a list of calibrated TESS FFI images.
 
@@ -21,17 +34,40 @@ def list_spoc_images(
         "mast" or "aws".
         Defaults to "aws".
     """
-    if camera is None:
-        camera = "\d"  # regex
-    if ccd is None:
-        ccd = "\d"  # regex
+    df = _load_spoc_ffi_catalog(sector=sector)
+    if camera:
+        df = df[df.camera == camera]
+    if ccd:
+        df = df[df.ccd == ccd]
+    if time:
+        if isinstance(time, str):
+            time = Time(time)
+        begin = Time(np.array(df.start, dtype=str))
+        end = Time(np.array(df.stop, dtype=str))
+        mask = (time >= begin) & (time <= end)
+        df = df[mask]
+
     if provider == "mast":
-        return _list_spoc_images_mast(sector, camera, ccd)
+        df["path"] = SPOC_MAST_PREFIX + df["path"]
     else:
-        return _list_spoc_images_aws(sector, camera, ccd)
+        df["path"] = SPOC_AWS_PREFIX + df["path"]
+
+    return TessImageList.from_catalog(df)
 
 
-def _list_spoc_images_mast(sector, camera, ccd):
+@lru_cache()
+def _load_spoc_ffi_catalog(sector: int) -> DataFrame:
+    path = crawler._spoc_catalog_path(sector=sector)
+    log.debug(f"Reading {path}")
+    return pd.read_parquet(path)
+
+
+###
+# OLD FUNCTIONS
+###
+
+
+def _list_spoc_images_mast(sector, camera="\d", ccd="\d"):
     """
     Caution: this returns URLs of the form
 
@@ -52,7 +88,7 @@ def _list_spoc_images_mast(sector, camera, ccd):
     #    return TessImageList([])
 
 
-def _list_spoc_images_aws(sector, camera, ccd):
+def _list_spoc_images_aws(sector, camera="\d", ccd="\d"):
     """Returns a list of the FFIs for a given sector/camera/ccd."""
     ffi_files = _load_ffi_manifest()
     mask = ffi_files.path.str.match(

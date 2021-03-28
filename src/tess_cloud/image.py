@@ -34,9 +34,6 @@ FFI_ROWS = 2078  # i.e. NAXIS2
 BYTES_PER_PIX = 4  # float32
 
 FFI_FILENAME_REGEX = r".*-s(\d+)-(\d)-(\d)-.*"
-MAST_FFI_URL_PREFIX = (
-    "https://mast.stsci.edu/portal/Download/file?uri=mast:TESS/product/"
-)
 
 
 class TessImage:
