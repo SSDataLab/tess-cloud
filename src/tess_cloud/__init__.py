@@ -2,7 +2,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -17,11 +17,11 @@ TESS_S3_BUCKET = "stpubdata"
 
 # The maximum number of downloads to await at any given time is controlled using a semaphore.
 # Too many parallel downloads may lead to read timeouts on slow connections.
-MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(100)
+MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(200)
 
 # Maximum number of images to cut out from at any given time;
 # this enables the progress bar to progress smoothly.
-MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(200)
+MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(300)
 
 from .manifest import get_s3_uri
 from .image import TessImage

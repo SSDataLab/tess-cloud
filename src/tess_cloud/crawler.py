@@ -78,7 +78,7 @@ async def _get_spoc_metadata_entry(url, sector=-1):
     data_offset, hdrstr = await img._find_data_offset(return_header=True)
     hdr = Header.fromstring(hdrstr)
     return {
-        "path": url[40:],
+        "path": url.replace("stpubdata/tess/public/", ""),
         "sector": sector,  # not in FITS header!
         "camera": hdr["CAMERA"],
         "ccd": hdr["CCD"],

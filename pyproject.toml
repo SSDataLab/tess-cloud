@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tess-cloud"
-version = "0.1.0"
+version = "0.2.0"
 description = "Analyze NASA TESS data in the cloud."
 license = "MIT"
 authors = ["Geert Barentsen <hello@geert.io>"]
@@ -17,17 +17,17 @@ classifiers = [
 python = "^3.7"
 numpy = ">=1.19"
 astropy = ">=4.2"
-#tess-locator = ">=0.3.0"
+tess-locator = ">=0.4.0"
 tess-ephem = ">=0.2.0"
 lightkurve = ">=2.0.3"
 aioboto3 = ">=8.2.0"
 diskcache = ">=5.2.1"
-tqdm = "^4.58.0"
-aiohttp = "^3.7.4"
-nest-asyncio = "^1.5.1"
-s3fs = "^0.5.2"
-pyarrow = "^3.0.0"
-backoff = "^1.10.0"
+tqdm = ">=4.58.0"
+aiohttp = ">=3.7.4"
+nest-asyncio = ">=1.5.1"
+s3fs = ">=0.5.2"
+pyarrow = ">=3.0.0"
+backoff = ">=1.10.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.0"
@@ -43,7 +43,7 @@ nest-asyncio = "^1.5"
 memory-profiler = "^0.58.0"
 mkdocs = "^1.1.2"
 mkdocs-material = "^7.0.6"
-tess-locator = {path = "../tess-locator", develop = true}
+#tess-locator = {path = "../tess-locator", develop = true}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

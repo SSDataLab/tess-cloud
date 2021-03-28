@@ -2,6 +2,7 @@
 
 # asyncio cannot be used in a Jupyter notebook environment
 # without first calling `nest_asyncio.apply()` following:
+from astropy.io.fits import column
 import nest_asyncio
 
 nest_asyncio.apply()
@@ -40,8 +41,8 @@ def cutout(
     target: str,
     shape: tuple = (5, 5),
     sector: int = None,
+    author: str = "spoc",
     images: int = None,
-    asynchronous=True,
 ) -> TargetPixelFile:
     """Returns a target pixel file."""
     locresult = locate(target=target, sector=sector)
@@ -55,35 +56,23 @@ def cutout(
             f"You can change this by passing the `sector` argument."
         )
     crd = locresult[0]
-    imagelist = crd.get_images()
+    imagelist = crd.list_images(author=author)
     if images:
         imagelist = imagelist[:images]
-    filenames = [img.filename for img in imagelist]
-    uris = [get_uri(fn) for fn in filenames]
-    crdlist = TessCoordList([crd]) * len(imagelist)
 
-    if asynchronous:
-        cutouts = asyncio.run(_get_cutouts(uris, crdlist, shape))
-    else:
-        cutouts = [
-            TessImage(uri).cutout(column=crd.column, row=crd.row, shape=shape)
-            for uri, crd in zip(uris, crdlist)
-        ]
-
-    tpf = TargetPixelFile.from_cutouts(cutouts)
-    return tpf.to_lightkurve()
+    return imagelist.cutout(column=crd.column, row=crd.row, shape=shape)
 
 
-async def _get_cutouts(uris, crdlist, shape):
+async def _get_cutouts(imagelist, crdlist, shape):
     async with aioboto3.client(
         "s3", config=Config(signature_version=UNSIGNED)
     ) as s3client:
         # Create list of functions to be executed
         flist = [
-            TessImage(uri, data_offset=20160).async_cutout(
+            img.async_cutout(
                 column=crd.column, row=crd.row, shape=shape, client=s3client
             )
-            for uri, crd in zip(uris, crdlist)
+            for img, crd in zip(imagelist, crdlist)
         ]
         # Create tasks for the sake of allowing a progress bar to be shown.
         # We'd want to use `asyncio.gather(*flist)` here to obtain the results in order,
@@ -123,7 +112,7 @@ def cutout_asteroid(
         eph = eph[:images]
 
     crdlist = TessCoordList.from_pandas(eph)
-    imagelist = crdlist.get_images()
+    imagelist = crdlist.list_images()
     filenames = [img.filename for img in imagelist]
     uris = [get_uri(fn) for fn in filenames]
 
