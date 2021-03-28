@@ -1,13 +1,15 @@
 from functools import lru_cache
+from urllib.error import HTTPError
 
 import pandas as pd
 
 from .manifest import _load_ffi_manifest
-from .image import TessImage, TessImageList
+from .image import TessImage
+from .imagelist import TessImageList
 
 
 def list_spoc_images(
-    sector: int = 1, camera: int = None, ccd: int = None, provider: str = "aws"
+    sector: int = 1, camera: int = None, ccd: int = None, provider: str = None
 ) -> TessImageList:
     """Returns a list of calibrated TESS FFI images.
 
@@ -17,15 +19,16 @@ def list_spoc_images(
     ----------
     provider : str
         "mast" or "aws".
+        Defaults to "aws".
     """
     if camera is None:
         camera = "\d"  # regex
     if ccd is None:
         ccd = "\d"  # regex
-    if provider == "aws":
-        return _list_spoc_images_aws(sector, camera, ccd)
-    else:
+    if provider == "mast":
         return _list_spoc_images_mast(sector, camera, ccd)
+    else:
+        return _list_spoc_images_aws(sector, camera, ccd)
 
 
 def _list_spoc_images_mast(sector, camera, ccd):
@@ -41,9 +44,12 @@ def _list_spoc_images_mast(sector, camera, ccd):
 
     Which allows for many more concurrent requests.
     """
+    # try:
     df = _get_mast_bundle(sector=sector)
     mask = df.url.str.match(f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits")
     return TessImageList([TessImage(url) for url in df[mask].url.values])
+    # except HTTPError:
+    #    return TessImageList([])
 
 
 def _list_spoc_images_aws(sector, camera, ccd):

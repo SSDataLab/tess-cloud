@@ -1,7 +1,7 @@
 # TODO: set good guess for data_offset
 
 # asyncio cannot be used in a Jupyter notebook environment
-# without the following:
+# without first calling `nest_asyncio.apply()` following:
 import nest_asyncio
 
 nest_asyncio.apply()
@@ -21,6 +21,7 @@ from tess_ephem import ephem
 from .image import TessImage
 from .targetpixelfile import TargetPixelFile
 from .manifest import get_s3_uri as get_uri
+from . import log
 
 
 def cutout_ffi(url, column, row, shape=(5, 5)) -> TargetPixelFile:
@@ -43,7 +44,17 @@ def cutout(
     asynchronous=True,
 ) -> TargetPixelFile:
     """Returns a target pixel file."""
-    crd = locate(target=target, sector=sector)[0]
+    locresult = locate(target=target, sector=sector)
+    if len(locresult) < 1:
+        raise ValueError("Target not observed by TESS yet.")
+    if not sector:
+        log.info(
+            f"Target observed in {len(locresult)} sector(s): "
+            f"{', '.join([str(r.sector) for r in locresult])}. \n"
+            f"Using sector {locresult[0].sector}. "
+            f"You can change this by passing the `sector` argument."
+        )
+    crd = locresult[0]
     imagelist = crd.get_images()
     if images:
         imagelist = imagelist[:images]

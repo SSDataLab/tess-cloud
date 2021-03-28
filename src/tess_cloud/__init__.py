@@ -1,11 +1,17 @@
 import asyncio
 import logging
+from pathlib import Path
 
 __version__ = "0.1.0"
 
 # Configure logging
 log = logging.getLogger(__name__)
 log.addHandler(logging.StreamHandler())
+log.setLevel("INFO")
+
+# Where does this package store its embedded data?
+PACKAGEDIR: Path = Path(__file__).parent.absolute()
+DATADIR: Path = PACKAGEDIR / "data"
 
 TESS_S3_BUCKET = "stpubdata"
 
@@ -18,17 +24,15 @@ MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(100)
 MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(200)
 
 from .manifest import get_s3_uri
-from .image import TessImage, TessImageList
-from .spoc import list_spoc_images
-from .tica import list_tica_images
+from .image import TessImage
+from .imagelist import TessImageList, list_images
 from .cutout import cutout, cutout_ffi, cutout_asteroid
 
 __all__ = [
     "get_s3_uri",
     "TessImage",
     "TessImageList",
-    "list_spoc_images",
-    "list_tica_images",
+    "list_images",
     "cutout",
     "cutout_ffi",
     "cutout_asteroid",
