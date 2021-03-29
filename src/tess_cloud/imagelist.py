@@ -6,6 +6,8 @@ from astropy.time import Time
 from pandas import DataFrame
 import tqdm
 
+from tess_locator import TessCoord, TessCoordList
+
 from .image import TessImage
 from .targetpixelfile import TargetPixelFile
 
@@ -38,18 +40,24 @@ class TessImageList(UserList):
 
     @classmethod
     def from_catalog(cls, catalog: DataFrame):
+        url_idx = catalog.columns.get_loc("path")
+        offset_idx = catalog.columns.get_loc("data_offset")
         # We use raw=True because it gains significant speed
         series = catalog.apply(
-            lambda x: TessImage(url=x[0], data_offset=x[7]), axis=1, raw=True
+            lambda x: TessImage(url=x[url_idx], data_offset=x[offset_idx]),
+            axis=1,
+            raw=True,
         )
         return cls(series.values)
 
-    async def _get_cutouts(self, column, row, shape):
+    async def _get_cutouts(self, crdlist: TessCoordList, shape):
         async with self[0]._get_default_client() as client:
             # Create list of functions to be executed
             flist = [
-                img.async_cutout(column=column, row=row, shape=shape, client=client)
-                for img in self
+                img.async_cutout(
+                    column=crd.column, row=crd.row, shape=shape, client=client
+                )
+                for img, crd in zip(self, crdlist)
             ]
             # Create tasks for the sake of allowing a progress bar to be shown.
             # We'd want to use `asyncio.gather(*flist)` here to obtain the results in order,
@@ -66,7 +74,23 @@ class TessImageList(UserList):
             return results
 
     def cutout(self, column: int, row: int, shape=(5, 5)):
-        cutouts = asyncio.run(self._get_cutouts(column=column, row=row, shape=shape))
+        # Turn (column, row) into a TessCoordList to match the interface of _get_cutouts
+        crdlist = TessCoordList(
+            [
+                TessCoord(
+                    sector=self[0].sector,
+                    camera=self[0].camera,
+                    ccd=self[0].ccd,
+                    column=column,
+                    row=row,
+                )
+            ]
+            * len(self)
+        )
+        return self.moving_cutout(crdlist=crdlist, shape=shape)
+
+    def moving_cutout(self, crdlist: TessCoordList, shape=(5, 5)):
+        cutouts = asyncio.run(self._get_cutouts(crdlist=crdlist, shape=shape))
         tpf = TargetPixelFile.from_cutouts(cutouts)
         return tpf.to_lightkurve()
 

@@ -91,8 +91,8 @@ def cutout_asteroid(
     target: str,
     shape: tuple = (10, 10),
     sector: int = None,
+    author: str = "spoc",
     images: int = None,
-    asynchronous=True,
 ) -> TargetPixelFile:
     """Returns a moving Target Pixel File centered on an asteroid."""
     eph = ephem(target, verbose=True)
@@ -112,7 +112,7 @@ def cutout_asteroid(
         eph = eph[:images]
 
     crdlist = TessCoordList.from_pandas(eph)
-    imagelist = crdlist.list_images()
+    imagelist = crdlist.list_images(author=author)
     filenames = [img.filename for img in imagelist]
     uris = [get_uri(fn) for fn in filenames]
 
