@@ -62,6 +62,17 @@ def _load_spoc_ffi_catalog(sector: int) -> DataFrame:
     return pd.read_parquet(path)
 
 
+def get_image_time(sector, camera=1, ccd=1) -> Time:
+    """Returns the times at which images were taken.
+
+    Be aware that the times depend on camera and ccd number.
+    """
+    df = _load_spoc_ffi_catalog(sector=sector)
+    df2 = df.query(f"camera == {camera} & ccd == {ccd}")
+    duration = Time(df2.stop.iloc[0]) - Time(df2.start.iloc[0])
+    return Time(df2.start.values.astype(str)) + (duration / 2)
+
+
 ###
 # OLD FUNCTIONS
 ###
