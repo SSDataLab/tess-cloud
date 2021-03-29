@@ -102,10 +102,11 @@ def cutout_asteroid(
     images: int = None,
 ) -> TargetPixelFile:
     """Returns a moving Target Pixel File centered on an asteroid."""
-    eph = ephem(target, verbose=True)
+    eph_initial = ephem(target)
+
     if sector is None:
+        all_sectors = eph_initial.sector.unique()
         # Default to first available sector
-        all_sectors = eph.sector.unique()
         sector = all_sectors[0]
         if len(all_sectors) > 0:
             warnings.warn(
@@ -115,7 +116,19 @@ def cutout_asteroid(
                 TessCloudWarning,
             )
 
-    eph = eph[eph.sector == sector]
+    from . import spoc
+
+    # Use most frequent (camera, ccd) combination to retrieve times
+    camera, ccd = (
+        eph_initial.query(f"sector == {sector}")
+        .groupby(["camera", "ccd"])["ccd"]
+        .count()
+        .sort_values(ascending=False)
+        .index[0]
+    )
+    time = spoc.get_image_time(sector=sector, camera=camera, ccd=ccd)
+
+    eph = ephem(target, time=time, verbose=True)
     if images:
         eph = eph[:images]
 
