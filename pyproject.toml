@@ -15,11 +15,14 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-numpy = ">=1.19"
-astropy = ">=4.2"
 tess-locator = ">=0.4.0"
 tess-ephem = ">=0.2.0"
-lightkurve = ">=2.0.3"
+lightkurve = ">=2.0.7"
+#tess-locator = {path = "../tess-locator", develop = true}
+#tess-ephem = {path = "../tess-ephem", develop = true}
+#lightkurve = {path = "../lightkurve", develop = true}
+numpy = ">=1.19"
+astropy = ">=4.2"
 aioboto3 = ">=8.2.0"
 diskcache = ">=5.2.1"
 tqdm = ">=4.58.0"
@@ -43,7 +46,6 @@ nest-asyncio = "^1.5"
 memory-profiler = "^0.58.0"
 mkdocs = "^1.1.2"
 mkdocs-material = "^7.0.6"
-#tess-locator = {path = "../tess-locator", develop = true}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
