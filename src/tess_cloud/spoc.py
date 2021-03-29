@@ -13,8 +13,8 @@ from .imagelist import TessImageList
 from . import crawler, log
 
 
-SPOC_AWS_PREFIX = "s3://stpubdata/tess/public/ffi"
-SPOC_MAST_PREFIX = "https://archive.stsci.edu/missions/tess/ffi"
+SPOC_AWS_PREFIX = "s3://stpubdata/tess/public/"
+SPOC_MAST_PREFIX = "https://archive.stsci.edu/missions/tess/"
 
 
 def list_spoc_images(
