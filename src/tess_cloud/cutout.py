@@ -1,20 +1,4 @@
-# TODO: set good guess for data_offset
-
-# asyncio cannot be used in a Jupyter notebook environment
-# without first calling `nest_asyncio.apply()` following:
-from astropy.io.fits import column
-import nest_asyncio
-
-nest_asyncio.apply()
-
-import asyncio
 import warnings
-
-import aioboto3
-from botocore import UNSIGNED
-from botocore.config import Config
-
-import tqdm
 
 from tess_locator import locate, TessCoordList
 from tess_ephem import ephem
@@ -22,8 +6,6 @@ from tess_ephem import ephem
 from .image import TessImage
 from .imagelist import list_images
 from .targetpixelfile import TargetPixelFile
-from .manifest import get_s3_uri as get_uri
-from . import log
 
 
 class TessCloudWarning(Warning):

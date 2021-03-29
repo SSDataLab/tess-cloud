@@ -1,3 +1,9 @@
+# asyncio cannot be used in a Jupyter notebook environment
+# without first calling `nest_asyncio.apply()` following:
+import nest_asyncio
+
+nest_asyncio.apply()
+
 import asyncio
 import logging
 from pathlib import Path

@@ -6,7 +6,6 @@ import re
 import struct
 import warnings
 from functools import lru_cache
-from typing import Union
 
 import aiohttp
 import aioboto3
@@ -17,12 +16,10 @@ from astropy.wcs import WCS
 from astropy.time import Time
 from botocore import UNSIGNED
 from botocore.config import Config
-import tqdm
 import backoff
 
 from . import MAX_CONCURRENT_DOWNLOADS, MAX_CONCURRENT_CUTOUTS, TESS_S3_BUCKET, log
-from .manifest import get_s3_uri, _load_ffi_manifest
-from .targetpixelfile import TargetPixelFile
+from .manifest import get_s3_uri
 
 # FITS standard specifies that header and data units
 # shall be a multiple of 2880 bytes long.
@@ -248,7 +245,7 @@ class TessImage:
             block = data[offset : offset + FITS_BLOCK_SIZE]
             offset += FITS_BLOCK_SIZE
             # Header sections end with "END" followed by whitespace until the end of the block
-            if re.search("END\s*$", block.decode("ascii")):
+            if re.search(r"END\s*$", block.decode("ascii")):
                 if current_ext == ext:
                     log.debug(f"data_offset={offset} for {self.url}")
                     if self.data_ext == ext:

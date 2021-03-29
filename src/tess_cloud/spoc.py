@@ -1,5 +1,4 @@
 from functools import lru_cache
-from urllib.error import HTTPError
 from typing import Union
 
 from astropy.time import Time
@@ -91,7 +90,7 @@ def get_image_time(sector, camera=1, ccd=1) -> Time:
 ###
 
 
-def _list_spoc_images_mast(sector, camera="\d", ccd="\d"):
+def _list_spoc_images_mast(sector, camera=r"\d", ccd=r"\d"):
     """
     Caution: this returns URLs of the form
 
@@ -106,17 +105,19 @@ def _list_spoc_images_mast(sector, camera="\d", ccd="\d"):
     """
     # try:
     df = _get_mast_bundle(sector=sector)
-    mask = df.url.str.match(f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits")
+    mask = df.url.str.match(
+        fr".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+    )
     return TessImageList([TessImage(url) for url in df[mask].url.values])
     # except HTTPError:
     #    return TessImageList([])
 
 
-def _list_spoc_images_aws(sector, camera="\d", ccd="\d"):
+def _list_spoc_images_aws(sector, camera=r"\d", ccd=r"\d"):
     """Returns a list of the FFIs for a given sector/camera/ccd."""
     ffi_files = _load_ffi_manifest()
     mask = ffi_files.path.str.match(
-        f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+        fr".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
     )
     return TessImageList(
         [TessImage("s3://stpubdata/" + x) for x in ffi_files[mask].path.values]

@@ -42,7 +42,10 @@ def list_tica_urls(sector=35) -> list:
 
 
 def _list_tica_urls_by_ccd(sector=35, camera=1, ccd=1, orbit=1) -> list:
-    bundle_url = f"https://archive.stsci.edu/hlsps/tica/bundles/s{sector:04d}/hlsp_tica_tess_ffi_s{sector:04d}-o{orbit}-cam{camera}-ccd{ccd}_tess_v01_ffis.sh"
+    bundle_url = (
+        f"https://archive.stsci.edu/hlsps/tica/bundles/s{sector:04d}/"
+        f"hlsp_tica_tess_ffi_s{sector:04d}-o{orbit}-cam{camera}-ccd{ccd}_tess_v01_ffis.sh"
+    )
     try:
         df = pd.read_fwf(bundle_url, colspecs=[(114, -1)], names=["url"])
         return df.url.tolist()

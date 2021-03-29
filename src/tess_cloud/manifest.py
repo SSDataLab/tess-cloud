@@ -13,12 +13,9 @@ import os
 import boto3
 from botocore import UNSIGNED
 from botocore.config import Config
-from botocore.exceptions import NoCredentialsError
 
 import diskcache
 import pandas as pd
-
-from . import TESS_S3_BUCKET
 
 
 __all__ = ["list_images", "get_s3_uri"]
@@ -89,11 +86,11 @@ def get_s3_uri(filename: str) -> str:
 def list_images(sector: int, camera: int = None, ccd: int = None):
     """Returns a list of the FFIs for a given sector/camera/ccd."""
     if camera is None:
-        camera = "\d"  # regex
+        camera = r"\d"  # regex
     if ccd is None:
-        ccd = "\d"  # regex
+        ccd = r"\d"  # regex
     ffi_files = _load_ffi_manifest()
     mask = ffi_files.path.str.match(
-        f".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+        fr".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
     )
     return ffi_files[mask].path.str.split("/").str[-1].values.tolist()
