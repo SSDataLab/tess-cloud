@@ -243,7 +243,7 @@ class TessImage:
         data = await self.async_read_block(0, max_seek)
         current_ext = 0
         offset = 0
-        prev_offset = 0
+        prev_offset = 0  # necessary to support the `return_header` feature
         while offset <= max_seek:
             block = data[offset : offset + FITS_BLOCK_SIZE]
             offset += FITS_BLOCK_SIZE
@@ -251,7 +251,8 @@ class TessImage:
             if re.search("END\s*$", block.decode("ascii")):
                 if current_ext == ext:
                     log.debug(f"data_offset={offset} for {self.url}")
-                    self.data_offset = offset
+                    if self.data_ext == ext:
+                        self.data_offset = offset
                     if return_header:
                         return offset, data[prev_offset:offset]
                     else:
@@ -319,7 +320,11 @@ class TessImage:
             flux = await self._async_cutout_array(
                 column=column, row=row, shape=shape, client=client
             )
-        time = Time(self.time).btjd
+
+        if self.time:
+            time = Time(self.time).btjd
+        else:
+            time = self.time
         cadenceno = self.cadenceno
         quality = self.quality
         flux_err = flux.copy()

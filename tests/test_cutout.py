@@ -1,3 +1,5 @@
+import asyncio
+
 from astropy.io import fits
 import numpy as np
 
@@ -13,19 +15,21 @@ def test_cutout():
     assert img.read_block(8, 1) == b"="
     # assert img.read_blocks([(0, 6), (8, 1)]) == [b"SIMPLE", b"="]
     # Can we find the correct start position of the data for extenions 0 and 1?
-    assert img._find_data_offset(ext=0) == 2880
-    assert img._find_data_offset(ext=1) == 23040
-    assert img._find_pixel_offset(col=0, row=0) == 23040
-    assert img._find_pixel_blocks(col=0, row=0, shape=(1, 1)) == [(23040, 4)]
+    assert asyncio.run(img._find_data_offset(ext=0)) == 2880
+    assert asyncio.run(img._find_data_offset(ext=1)) == 23040
+    assert asyncio.run(img._find_pixel_offset(column=0, row=0)) == 23040
+    assert asyncio.run(img._find_pixel_blocks(column=0, row=0, shape=(1, 1))) == [
+        (23040, 4)
+    ]
     # Corner pixel
-    assert img.cutout(col=0, row=0, shape=(1, 1)).flux.round(7) == 0.0941298
+    assert img.cutout(column=0, row=0, shape=(1, 1)).flux.round(7) == 0.0941298
     # First three pixels of the first row
     assert (
-        img.cutout(col=1, row=0, shape=(3, 1)).flux.round(7)
+        img.cutout(column=1, row=0, shape=(3, 1)).flux.round(7)
         == np.array([0.0941298, -0.0605419, 0.0106343])
     ).all()
     # First three pixels of the first column
     assert (
-        img.cutout(col=1, row=1, shape=(1, 3)).flux.round(7)
+        img.cutout(column=1, row=1, shape=(1, 3)).flux.round(7)
         == np.array([[-0.0605419], [0.0327947], [-0.0278026]])
     ).all()
