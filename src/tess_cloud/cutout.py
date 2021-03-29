@@ -38,11 +38,6 @@ def cutout_ffi(url, column, row, shape=(5, 5)) -> TargetPixelFile:
     return TargetPixelFile.from_cutouts([cutout]).to_lightkurve()
 
 
-def cutout_header():
-    # to do
-    pass
-
-
 def cutout(
     target: str,
     shape: tuple = (5, 5),
@@ -70,30 +65,6 @@ def cutout(
     return imagelist.cutout(column=crd.column, row=crd.row, shape=shape)
 
 
-async def _get_cutouts(imagelist, crdlist, shape):
-    async with aioboto3.client(
-        "s3", config=Config(signature_version=UNSIGNED)
-    ) as s3client:
-        # Create list of functions to be executed
-        flist = [
-            img.async_cutout(
-                column=crd.column, row=crd.row, shape=shape, client=s3client
-            )
-            for img, crd in zip(imagelist, crdlist)
-        ]
-        # Create tasks for the sake of allowing a progress bar to be shown.
-        # We'd want to use `asyncio.gather(*flist)` here to obtain the results in order,
-        # but the progress par needs `asyncio.as_completed` to work.
-        tasks = [asyncio.create_task(f) for f in flist]
-        for t in tqdm.tqdm(
-            asyncio.as_completed(tasks), total=len(tasks), desc="Downloading cutouts"
-        ):
-            await t
-        # Now take care of getting the results in order
-        results = [t.result() for t in tasks]
-        return results
-
-
 def cutout_asteroid(
     target: str,
     shape: tuple = (10, 10),
@@ -108,11 +79,11 @@ def cutout_asteroid(
         all_sectors = eph_initial.sector.unique()
         # Default to first available sector
         sector = all_sectors[0]
-        if len(all_sectors) > 0:
+        if len(all_sectors) > 1:
             warnings.warn(
                 f"{target} has been observed in multiple sectors: {all_sectors}. "
-                "Defaulting to `sector={sector}`."
-                "You can change the sector by passing the `sector` keyword argument. ",
+                f"Defaulting to `sector={sector}`. "
+                f"You can change the sector by passing the `sector` keyword argument. ",
                 TessCloudWarning,
             )
 

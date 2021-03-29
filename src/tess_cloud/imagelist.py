@@ -42,13 +42,24 @@ class TessImageList(UserList):
     def from_catalog(cls, catalog: DataFrame):
         url_idx = catalog.columns.get_loc("path")
         offset_idx = catalog.columns.get_loc("data_offset")
+        time_idx = catalog.columns.get_loc("time")
+        cadenceno_idx = catalog.columns.get_loc("cadenceno")
+        quality_idx = catalog.columns.get_loc("quality")
         # We use raw=True because it gains significant speed
         series = catalog.apply(
-            lambda x: TessImage(url=x[url_idx], data_offset=x[offset_idx]),
+            lambda x: TessImage(
+                url=x[url_idx],
+                data_offset=x[offset_idx],
+                time=x[time_idx],
+                cadenceno=x[cadenceno_idx],
+                quality=x[quality_idx],
+            ),
             axis=1,
             raw=True,
         )
-        return cls(series.values)
+        obj = cls(series.values)
+        obj._catalog = catalog
+        return obj
 
     async def _get_cutouts(self, crdlist: TessCoordList, shape):
         async with self[0]._get_default_client() as client:

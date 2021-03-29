@@ -132,7 +132,11 @@ class TargetPixelFile:
     def _create_hdulist(self):
         """Returns an astropy.io.fits.HDUList object."""
         return fits.HDUList(
-            [self._create_primary_hdu(), self._create_table_extension()]
+            [
+                self._create_primary_hdu(),
+                self._create_table_extension(),
+                self._create_aperture_extension(),
+            ]
         )
 
     def _create_primary_hdu(self):
@@ -192,4 +196,11 @@ class TargetPixelFile:
         coldefs = fits.ColDefs(cols)
         hdu = fits.BinTableHDU.from_columns(coldefs)
 
+        return hdu
+
+    def _create_aperture_extension(self):
+        """Create the aperture mask extension (i.e. extension #2)."""
+        mask = 3 * np.ones((self.n_rows, self.n_columns), dtype="int32")
+        hdu = fits.ImageHDU(mask)
+        hdu.header["EXTNAME"] = "APERTURE"
         return hdu

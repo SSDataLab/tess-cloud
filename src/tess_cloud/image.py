@@ -14,6 +14,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyUserWarning
 from astropy.wcs import WCS
+from astropy.time import Time
 from botocore import UNSIGNED
 from botocore.config import Config
 import tqdm
@@ -45,7 +46,15 @@ class TessImage:
         URL or filename of a TESS FFI image on AWS S3.
     """
 
-    def __init__(self, url, data_ext=None, data_offset=None):
+    def __init__(
+        self,
+        url,
+        time=None,
+        cadenceno=None,
+        quality=None,
+        data_ext=None,
+        data_offset=None,
+    ):
         if "/" in url:
             self.filename = url.split("/")[-1]
             self._url = url
@@ -60,6 +69,9 @@ class TessImage:
                 data_ext = 1
         self.data_ext = data_ext
 
+        self.time = time
+        self.cadenceno = cadenceno
+        self.quality = quality
         self.data_offset = data_offset
 
     def __repr__(self):
@@ -307,9 +319,9 @@ class TessImage:
             flux = await self._async_cutout_array(
                 column=column, row=row, shape=shape, client=client
             )
-        time = 0
-        cadenceno = 0
-        quality = 0
+        time = Time(self.time).btjd
+        cadenceno = self.cadenceno
+        quality = self.quality
         flux_err = flux.copy()
         flux_err[:] = np.nan
         return Cutout(

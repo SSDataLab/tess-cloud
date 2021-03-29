@@ -52,6 +52,14 @@ def list_spoc_images(
     else:
         df["path"] = SPOC_AWS_PREFIX + df["path"]
 
+    # Add time column (TODO: move this to save_catalog)
+    duration = Time(df.stop.iloc[0]) - Time(df.start.iloc[0])
+    timeobj = Time(df.start.values.astype(str)) + (duration / 2)
+    df["time"] = timeobj.iso
+
+    # TODO: have this be part of save_catalog
+    df["cadenceno"] = np.zeros(len(df), dtype=int)
+
     return TessImageList.from_catalog(df)
 
 
