@@ -176,9 +176,10 @@ class TessImage:
         # Use Semaphore to limit the number of concurrent downloads
         async with MAX_CONCURRENT_DOWNLOADS:
             if self._client_type == "s3":
-                return await self._async_read_block_s3(offset, length, client)
+                result = await self._async_read_block_s3(offset, length, client)
             elif self._client_type == "http":
-                return await self._async_read_block_http(offset, length, client)
+                result = await self._async_read_block_http(offset, length, client)
+            return result
 
     def read_block(self, offset: int = None, length: int = None) -> bytes:
         """Read a block of bytes from AWS S3.

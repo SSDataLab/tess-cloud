@@ -29,11 +29,11 @@ class TargetPixelFile:
 
     def __init__(
         self,
-        time: array,
-        cadenceno: array,
+        time: ndarray,
+        cadenceno: ndarray,
         flux: ndarray,
         flux_err: ndarray,
-        quality: array,
+        quality: ndarray,
         wcs: WCS = None,
         meta: dict = None,
     ):
