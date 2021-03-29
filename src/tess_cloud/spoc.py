@@ -65,9 +65,14 @@ def list_spoc_images(
 
 @lru_cache()
 def _load_spoc_ffi_catalog(sector: int) -> DataFrame:
-    path = crawler._spoc_catalog_path(sector=sector)
-    log.debug(f"Reading {path}")
-    return pd.read_parquet(path)
+    try:
+        path = crawler._spoc_catalog_path(sector=sector)
+        log.debug(f"Reading {path}")
+        return pd.read_parquet(path)
+    except FileNotFoundError:
+        raise ValueError(
+            f"The SPOC image catalog for sector {sector} is not available in this version of tess-cloud."
+        )
 
 
 def get_image_time(sector, camera=1, ccd=1) -> Time:

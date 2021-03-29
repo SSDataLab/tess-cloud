@@ -25,6 +25,18 @@ class TessImageList(UserList):
             x.insert(4, "...")
         return f"List of {len(self)} images\n ↳[" + "\n   ".join(x) + "]"
 
+    @property
+    def time(self):
+        return [img.time for img in self]
+
+    @property
+    def quality(self):
+        return [img.quality for img in self]
+
+    @property
+    def cadenceno(self):
+        return [img.cadenceno for img in self]
+
     def to_pandas(self) -> DataFrame:
         data = [
             {

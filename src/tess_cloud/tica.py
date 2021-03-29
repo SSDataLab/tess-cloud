@@ -119,6 +119,16 @@ def list_tica_images(
         df = df[mask]
 
     df["path"] = TICA_MAST_PREFIX + df["path"]
+
+    # Add time column (TODO: move this to save_catalog)
+    duration = Time(df.stop.iloc[0]) - Time(df.start.iloc[0])
+    timeobj = Time(df.start.values.astype(str)) + (duration / 2)
+    df["time"] = timeobj.iso
+
+    # TODO: have this be part of save_catalog
+    df["quality"] = np.zeros(len(df), dtype=int)
+    df["cadenceno"] = df["cadence"]
+
     return TessImageList.from_catalog(df)
 
 
@@ -126,4 +136,5 @@ def list_tica_images(
 def _load_tica_ffi_catalog(sector: int) -> DataFrame:
     path = _tica_catalog_path(sector=sector)
     log.debug(f"Reading {path}")
-    return pd.read_parquet(path)
+    # TODO: move sort_values to `save_catalog`
+    return pd.read_parquet(path).sort_values("path")

@@ -20,6 +20,7 @@ from tess_locator import locate, TessCoordList
 from tess_ephem import ephem
 
 from .image import TessImage
+from .imagelist import list_images
 from .targetpixelfile import TargetPixelFile
 from .manifest import get_s3_uri as get_uri
 from . import log
@@ -87,8 +88,6 @@ def cutout_asteroid(
                 TessCloudWarning,
             )
 
-    from . import spoc
-
     # Use most frequent (camera, ccd) combination to retrieve times
     camera, ccd = (
         eph_initial.query(f"sector == {sector}")
@@ -97,8 +96,8 @@ def cutout_asteroid(
         .sort_values(ascending=False)
         .index[0]
     )
-    time = spoc.get_image_time(sector=sector, camera=camera, ccd=ccd)
-
+    # Get the exact mid-frame times
+    time = list_images(sector=sector, camera=camera, ccd=ccd, author=author).time
     eph = ephem(target, time=time, verbose=True)
     if images:
         eph = eph[:images]
