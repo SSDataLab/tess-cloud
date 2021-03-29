@@ -25,6 +25,12 @@ from .manifest import get_s3_uri as get_uri
 from . import log
 
 
+class TessCloudWarning(Warning):
+    """Class for all tess-cloud warnings."""
+
+    pass
+
+
 def cutout_ffi(url, column, row, shape=(5, 5)) -> TargetPixelFile:
     """Retrieve a section from an FFI."""
     img = TessImage(url)
@@ -47,13 +53,14 @@ def cutout(
     """Returns a target pixel file."""
     locresult = locate(target=target, sector=sector)
     if len(locresult) < 1:
-        raise ValueError("Target not observed by TESS yet.")
-    if not sector:
-        log.info(
+        raise ValueError("Target not observed by TESS.")
+    if len(locresult) > 1:
+        warnings.warn(
             f"Target observed in {len(locresult)} sector(s): "
             f"{', '.join([str(r.sector) for r in locresult])}. \n"
-            f"Using sector {locresult[0].sector}. "
-            f"You can change this by passing the `sector` argument."
+            f"Defaulting to sector {locresult[0].sector}. "
+            f"You can change this by passing the `sector` argument.",
+            TessCloudWarning,
         )
     crd = locresult[0]
     imagelist = crd.list_images(author=author)
@@ -104,7 +111,8 @@ def cutout_asteroid(
             warnings.warn(
                 f"{target} has been observed in multiple sectors: {all_sectors}. "
                 "Defaulting to `sector={sector}`."
-                "You can change the sector by passing the `sector` keyword argument. "
+                "You can change the sector by passing the `sector` keyword argument. ",
+                TessCloudWarning,
             )
 
     eph = eph[eph.sector == sector]
@@ -113,16 +121,4 @@ def cutout_asteroid(
 
     crdlist = TessCoordList.from_pandas(eph)
     imagelist = crdlist.list_images(author=author)
-    filenames = [img.filename for img in imagelist]
-    uris = [get_uri(fn) for fn in filenames]
-
-    if asynchronous:
-        cutouts = asyncio.run(_get_cutouts(uris, crdlist, shape))
-    else:
-        cutouts = [
-            TessImage(uri).cutout(column=crd.column, row=crd.row, shape=shape)
-            for uri, crd in zip(uris, crdlist)
-        ]
-
-    tpf = TargetPixelFile.from_cutouts(cutouts)
-    return tpf.to_lightkurve()
+    return imagelist.moving_cutout(crdlist=crdlist, shape=shape)
