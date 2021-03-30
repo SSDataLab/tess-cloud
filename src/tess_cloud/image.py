@@ -46,11 +46,9 @@ class TessImage:
     def __init__(
         self,
         url,
-        time=None,
-        cadenceno=None,
-        quality=None,
         data_ext=None,
         data_offset=None,
+        meta=None,
     ):
         if "/" in url:
             self.filename = url.split("/")[-1]
@@ -66,24 +64,15 @@ class TessImage:
                 data_ext = 1
         self.data_ext = data_ext
 
-        self.time = time
-        self.cadenceno = cadenceno
-        self.quality = quality
         self.data_offset = data_offset
+
+        if meta is None:
+            self.meta = {}
+        else:
+            self.meta = meta
 
     def __repr__(self):
         return f'TessImage("{self.filename}")'
-
-    def _parse_filename(self) -> dict:
-        """Extracts sector, camera, ccd from a TESS FFI filename."""
-        search = re.search(FFI_FILENAME_REGEX, self.filename)
-        if not search:
-            raise ValueError(f"Unrecognized FFI filename: {self.filename}")
-        return {
-            "sector": int(search.group(1)),
-            "camera": int(search.group(2)),
-            "ccd": int(search.group(3)),
-        }
 
     @property
     def _client_type(self) -> str:
@@ -102,15 +91,27 @@ class TessImage:
 
     @property
     def sector(self) -> int:
-        return self._parse_filename()["sector"]
+        return self.meta.get("sector")
 
     @property
     def camera(self) -> int:
-        return self._parse_filename()["camera"]
+        return self.meta.get("camera")
 
     @property
     def ccd(self) -> int:
-        return self._parse_filename()["ccd"]
+        return self.meta.get("ccd")
+
+    @property
+    def time(self) -> str:
+        return self.meta.get("time")
+
+    @property
+    def cadenceno(self) -> int:
+        return self.meta.get("cadenceno")
+
+    @property
+    def quality(self) -> int:
+        return self.meta.get("quality")
 
     @property
     def url(self) -> str:
@@ -323,16 +324,21 @@ class TessImage:
             time = Time(self.time).btjd
         else:
             time = self.time
-        cadenceno = self.cadenceno
-        quality = self.quality
+
         flux_err = flux.copy()
         flux_err[:] = np.nan
         return Cutout(
             time=time,
-            cadenceno=cadenceno,
             flux=flux,
             flux_err=flux_err,
-            quality=quality,
+            sector=self.sector,
+            camera=self.camera,
+            ccd=self.ccd,
+            column=column,
+            row=row,
+            cadenceno=self.cadenceno,
+            quality=self.quality,
+            meta=self.meta,
         )
 
     def cutout(self, column, row, shape=(5, 5)) -> "Cutout":
@@ -344,16 +350,26 @@ class Cutout:
     def __init__(
         self,
         time: float,
-        cadenceno: int,
         flux: np.ndarray,
         flux_err: np.ndarray,
+        sector: int,
+        camera: int,
+        ccd: int,
+        column: int,
+        row: int,
+        cadenceno: int,
         quality: int,
         meta: dict = None,
     ):
         self.time = time
-        self.cadenceno = cadenceno
         self.flux = flux
         self.flux_err = flux_err
+        self.sector = sector
+        self.camera = camera
+        self.ccd = ccd
+        self.column = column
+        self.row = row
+        self.cadenceno = cadenceno
         self.quality = quality
         self.meta = meta
 
@@ -368,26 +384,3 @@ def _default_s3_client():
 
 def _sync_call(func, *args, **kwargs):
     return asyncio.run(func(*args, **kwargs))
-
-
-def _data_offset_lookup(camera=1, ccd=1):
-    """Returns a lookup table mapping sector => data offset."""
-    from . import manifest
-
-    lookup = {}
-    sector = 1
-    df = manifest._load_manifest_table()
-    while True:
-        sector_ffis = df[
-            df.path.str.match(
-                f"tess/public/ffi/s{sector:04d}/.*s{sector:04d}-{camera}-{ccd}.*ffic.fits"
-            )
-        ]
-        if len(sector_ffis) == 0:
-            break
-        uri = sector_ffis.path.iloc[200]
-        offset = TessImage(uri)._find_data_offset()
-        lookup[sector] = offset
-        print(f"{sector}: {offset} {uri}")
-        sector += 1
-    return lookup

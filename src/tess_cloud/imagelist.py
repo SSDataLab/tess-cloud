@@ -52,22 +52,13 @@ class TessImageList(UserList):
 
     @classmethod
     def from_catalog(cls, catalog: DataFrame):
-        url_idx = catalog.columns.get_loc("path")
-        offset_idx = catalog.columns.get_loc("data_offset")
-        time_idx = catalog.columns.get_loc("time")
-        cadenceno_idx = catalog.columns.get_loc("cadenceno")
-        quality_idx = catalog.columns.get_loc("quality")
-        # We use raw=True because it gains significant speed
         series = catalog.apply(
             lambda x: TessImage(
-                url=x[url_idx],
-                data_offset=x[offset_idx],
-                time=x[time_idx],
-                cadenceno=x[cadenceno_idx],
-                quality=x[quality_idx],
+                url=x["path"],
+                data_offset=x["data_offset"],
+                meta=x.to_dict(),
             ),
             axis=1,
-            raw=True,
         )
         obj = cls(series.values)
         obj._catalog = catalog
@@ -114,7 +105,9 @@ class TessImageList(UserList):
 
     def moving_cutout(self, crdlist: TessCoordList, shape=(5, 5)):
         cutouts = asyncio.run(self._get_cutouts(crdlist=crdlist, shape=shape))
-        tpf = TargetPixelFile.from_cutouts(cutouts)
+        tpf = TargetPixelFile.from_cutouts(
+            cutouts  # , extra_columns=["sector", "camera", "ccd"]
+        )
         return tpf.to_lightkurve()
 
 

@@ -24,24 +24,35 @@ from astropy.io import fits
 import lightkurve as lk
 
 
+TPF_OPTIONAL_COLUMNS = {
+    "CADENCENO": {"format": "J"},
+    "QUALITY": {"format": "J"},
+    "POS_CORR1": {"format": "E", "unit": "pixels"},
+    "POS_CORR2": {"format": "E", "unit": "pixels"},
+    "SECTOR": {"format": "I"},
+    "CAMERA": {"format": "B"},
+    "CCD": {"format": "B"},
+    "COLUMN": {"format": "I"},
+    "ROW": {"format": "I"},
+}
+
+
 class TargetPixelFile:
     """Class representation of a Target Pixel File (TPF)."""
+
+    _optional_column_data = {}
 
     def __init__(
         self,
         time: ndarray,
-        cadenceno: ndarray,
         flux: ndarray,
         flux_err: ndarray,
-        quality: ndarray,
         wcs: WCS = None,
         meta: dict = None,
     ):
         self.time = time
-        self.cadenceno = cadenceno
         self.flux = flux
         self.flux_err = flux_err
-        self.quality = quality
         self.wcs = wcs
         if meta is None:
             meta = {}
@@ -50,6 +61,9 @@ class TargetPixelFile:
             meta["CREATOR"] = "tess_cloud.targetpixelfile"
             meta["DATE"] = datetime.now().strftime("%Y-%m-%d")
         self.meta = meta
+
+    def add_column(self, name, array):
+        self._optional_column_data[name] = array
 
     @property
     def n_cadences(self):
@@ -100,15 +114,23 @@ class TargetPixelFile:
             flux_err[idx] = np.nan
 
         time = np.array([img.time for img in images])
-        cadenceno = np.array([img.cadenceno for img in images])
-        quality = np.array([img.quality for img in images])
-        return TargetPixelFile(
+        tpf = TargetPixelFile(
             time=time,
-            cadenceno=cadenceno,
             flux=flux,
             flux_err=flux_err,
-            quality=quality,
         )
+
+        tpf.add_column(
+            name="CADENCENO", array=np.array([img.cadenceno for img in images])
+        )
+        tpf.add_column(name="QUALITY", array=np.array([img.quality for img in images]))
+        tpf.add_column(name="SECTOR", array=np.array([img.sector for img in images]))
+        tpf.add_column(name="CAMERA", array=np.array([img.camera for img in images]))
+        tpf.add_column(name="CCD", array=np.array([img.ccd for img in images]))
+        tpf.add_column(name="COLUMN", array=np.array([img.column for img in images]))
+        tpf.add_column(name="ROW", array=np.array([img.row for img in images]))
+
+        return tpf
 
     @staticmethod
     def read(path) -> "TargetPixelFile":
@@ -158,7 +180,6 @@ class TargetPixelFile:
         cols.append(
             fits.Column(name="TIMECORR", format="E", unit="D", array=self.timecorr)
         )
-        cols.append(fits.Column(name="CADENCENO", format="J", array=self.cadenceno))
         cols.append(
             fits.Column(
                 name="RAW_CNTS",
@@ -182,17 +203,18 @@ class TargetPixelFile:
                 array=self.flux_err,
             )
         )
-        cols.append(fits.Column(name="QUALITY", format="J", array=self.quality))
-        cols.append(
-            fits.Column(
-                name="POS_CORR1", format="E", unit="pixels", array=self.pos_corr1
+
+        for name in self._optional_column_data:
+            key = name.upper()
+            cols.append(
+                fits.Column(
+                    name=key,
+                    array=self._optional_column_data[key],
+                    format=TPF_OPTIONAL_COLUMNS[key].get("format", ""),
+                    unit=TPF_OPTIONAL_COLUMNS[key].get("unit", ""),
+                )
             )
-        )
-        cols.append(
-            fits.Column(
-                name="POS_CORR2", format="E", unit="pixels", array=self.pos_corr2
-            )
-        )
+
         coldefs = fits.ColDefs(cols)
         hdu = fits.BinTableHDU.from_columns(coldefs)
 
