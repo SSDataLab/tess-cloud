@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tess-cloud"
-version = "0.2.0"
+version = "0.2.1"
 description = "Analyze NASA TESS data in the cloud."
 license = "MIT"
 authors = ["Geert Barentsen <hello@geert.io>"]
