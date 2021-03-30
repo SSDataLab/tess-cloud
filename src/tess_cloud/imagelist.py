@@ -40,11 +40,13 @@ class TessImageList(UserList):
     def to_pandas(self) -> DataFrame:
         data = [
             {
-                "filename": im.filename,
+                "url": im.url,
                 "sector": im.sector,
                 "camera": im.camera,
                 "ccd": im.ccd,
-                "url_mast": im.url_mast,
+                "time": im.time,
+                "cadenceno": im.cadenceno,
+                "quality": im.quality,
             }
             for im in self
         ]
