@@ -18,7 +18,8 @@ from botocore import UNSIGNED
 from botocore.config import Config
 import backoff
 
-from . import MAX_CONCURRENT_DOWNLOADS, MAX_CONCURRENT_CUTOUTS, TESS_S3_BUCKET, log
+from . import MAX_CONCURRENT_DOWNLOADS, MAX_CONCURRENT_CUTOUTS, MAX_TCP_CONNECTIONS
+from . import TESS_S3_BUCKET, log
 from .manifest import get_s3_uri
 
 # FITS standard specifies that header and data units
@@ -375,7 +376,8 @@ class Cutout:
 
 
 def _default_http_client():
-    return aiohttp.ClientSession()
+    conn = aiohttp.TCPConnector(limit=MAX_TCP_CONNECTIONS)
+    return aiohttp.ClientSession(connector=conn)
 
 
 def _default_s3_client():

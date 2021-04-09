@@ -23,11 +23,16 @@ TESS_S3_BUCKET = "stpubdata"
 
 # The maximum number of downloads to await at any given time is controlled using a semaphore.
 # Too many parallel downloads may lead to read timeouts on slow connections.
-MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(200)
+MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(10)
 
 # Maximum number of images to cut out from at any given time;
 # this enables the progress bar to progress smoothly.
-MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(300)
+MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(100)
+
+# Maximum number of simultaneous HTTP/TCP connections
+# This will be passed on to `aiohttp`, i.e. `TCPConnector(limit=MAX_TCP_CONNECTIONS)`
+MAX_TCP_CONNECTIONS = 3
+
 
 from .manifest import get_s3_uri
 from .image import TessImage
