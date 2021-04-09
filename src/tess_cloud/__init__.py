@@ -33,6 +33,9 @@ MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(30)
 # This will be passed on to `aiohttp`, i.e. `TCPConnector(limit=MAX_TCP_CONNECTIONS)`
 MAX_TCP_CONNECTIONS = 3
 
+# How to identify this package in HTTP GET requests?
+USER_AGENT = f"tess-cloud/{__version__}"
+
 
 from .manifest import get_s3_uri
 from .image import TessImage

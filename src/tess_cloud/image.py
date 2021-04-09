@@ -19,7 +19,7 @@ from botocore.config import Config
 import backoff
 
 from . import MAX_CONCURRENT_DOWNLOADS, MAX_CONCURRENT_CUTOUTS, MAX_TCP_CONNECTIONS
-from . import TESS_S3_BUCKET, log
+from . import USER_AGENT, TESS_S3_BUCKET, log
 from .manifest import get_s3_uri
 
 # FITS standard specifies that header and data units
@@ -128,7 +128,7 @@ class TessImage:
     async def _async_read_block_http(
         self, offset: int = None, length: int = None, client=None
     ):
-        headers = {}
+        headers = {"User-Agent": USER_AGENT}
         if not (offset is None or length is None):
             headers["Range"] = f"bytes={offset}-{offset+length-1}"
 
