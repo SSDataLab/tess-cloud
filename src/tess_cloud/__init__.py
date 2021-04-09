@@ -8,7 +8,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-__version__ = "0.2.1"
+__version__ = "0.3.0"
 
 # Configure logging
 log = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ MAX_CONCURRENT_DOWNLOADS = asyncio.Semaphore(10)
 
 # Maximum number of images to cut out from at any given time;
 # this enables the progress bar to progress smoothly.
-MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(100)
+MAX_CONCURRENT_CUTOUTS = asyncio.Semaphore(30)
 
 # Maximum number of simultaneous HTTP/TCP connections
 # This will be passed on to `aiohttp`, i.e. `TCPConnector(limit=MAX_TCP_CONNECTIONS)`
