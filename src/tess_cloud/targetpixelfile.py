@@ -16,6 +16,8 @@ ColDefs(
 )
 """
 from datetime import datetime
+from typing import Optional
+
 import numpy as np
 from numpy import array, ndarray
 
@@ -47,12 +49,22 @@ class TargetPixelFile:
         time: ndarray,
         flux: ndarray,
         flux_err: ndarray,
-        wcs: WCS = None,
-        meta: dict = None,
+        flux_bkg: Optional[ndarray] = None,
+        flux_bkg_err: Optional[ndarray] = None,
+        wcs: Optional[WCS] = None,
+        meta: Optional[dict] = None,
     ):
         self.time = time
         self.flux = flux
         self.flux_err = flux_err
+        self.flux_bkg = flux_bkg
+        if self.flux_bkg is None:
+            self.flux_bkg = np.empty(shape=flux.shape)
+            self.flux_bkg[:] = np.nan
+        self.flux_bkg_err = flux_bkg_err
+        if self.flux_bkg_err is None:
+            self.flux_bkg_err = np.empty(shape=flux.shape)
+            self.flux_bkg_err[:] = np.nan
         self.wcs = wcs
         if meta is None:
             meta = {}
@@ -106,7 +118,10 @@ class TargetPixelFile:
 
     @staticmethod
     def from_cutouts(images: list) -> "TargetPixelFile":
-        shape = (len(images), images[0].flux.shape[0], images[0].flux.shape[1])
+        if len(images) > 0:
+            shape = (len(images), images[0].flux.shape[0], images[0].flux.shape[1])
+        else:
+            shape = (0, 0, 0)
         flux = np.empty(shape)
         flux_err = np.empty(shape)
         for idx, img in enumerate(images):
@@ -148,8 +163,10 @@ class TargetPixelFile:
         hdulist = self._create_hdulist()
         return hdulist.writeto(*args, **kwargs)
 
-    def to_lightkurve(self):
-        return lk.TessTargetPixelFile(self._create_hdulist())
+    def to_lightkurve(self, quality_bitmask=0):
+        return lk.TessTargetPixelFile(
+            self._create_hdulist(), quality_bitmask=quality_bitmask
+        )
 
     def _create_hdulist(self):
         """Returns an astropy.io.fits.HDUList object."""
@@ -175,7 +192,7 @@ class TargetPixelFile:
         jformat = "{}J".format(self.n_rows * self.n_columns)
         cols = []
         cols.append(
-            fits.Column(name="TIME", format="D", unit="BJD - 2454833", array=self.time)
+            fits.Column(name="TIME", format="D", unit="BJD - 2457000", array=self.time)
         )
         cols.append(
             fits.Column(name="TIMECORR", format="E", unit="D", array=self.timecorr)
@@ -203,6 +220,24 @@ class TargetPixelFile:
                 array=self.flux_err,
             )
         )
+        cols.append(
+            fits.Column(
+                name="FLUX_BKG",
+                format=eformat,
+                unit="e-/s",
+                dim=coldim,
+                array=self.flux_bkg,
+            )
+        )
+        cols.append(
+            fits.Column(
+                name="FLUX_BKG_ERR",
+                format=eformat,
+                unit="e-/s",
+                dim=coldim,
+                array=self.flux_bkg_err,
+            )
+        )
 
         for name in self._optional_column_data:
             key = name.upper()
@@ -217,6 +252,7 @@ class TargetPixelFile:
 
         coldefs = fits.ColDefs(cols)
         hdu = fits.BinTableHDU.from_columns(coldefs)
+        hdu.header["BJDREFI"] = 2457000
 
         return hdu
 
