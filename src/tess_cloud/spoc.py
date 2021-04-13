@@ -44,6 +44,8 @@ def list_spoc_images(
         begin = Time(np.array(df.start, dtype=str))
         end = Time(np.array(df.stop, dtype=str))
         mask = (time >= begin) & (time <= end)
+        if not any(mask):
+            return TessImageList([])
         df = df[mask]
 
     if provider == "mast":
