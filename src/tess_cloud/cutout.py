@@ -3,8 +3,10 @@ import warnings
 from tess_locator import locate, TessCoordList
 from tess_ephem import ephem
 
+from astropy.time import Time
+
 from .image import TessImage
-from .imagelist import list_images
+from .imagelist import list_images, TessImageList
 from .targetpixelfile import TargetPixelFile
 
 
@@ -54,13 +56,15 @@ def cutout_asteroid(
     sector: int = None,
     author: str = "spoc",
     images: int = None,
+    time_delay: float = 0.0,
 ) -> TargetPixelFile:
     """Returns a moving Target Pixel File centered on an asteroid."""
     eph_initial = ephem(target)
 
+    # If no sector is specified, we default to the first available sector
+    # and issue a warning if multiple sector choices were available.
     if sector is None:
         all_sectors = eph_initial.sector.unique()
-        # Default to first available sector
         sector = all_sectors[0]
         if len(all_sectors) > 1:
             warnings.warn(
@@ -81,9 +85,23 @@ def cutout_asteroid(
     # Get the exact mid-frame times
     time = list_images(sector=sector, camera=camera, ccd=ccd, author=author).time
     eph = ephem(target, time=time, verbose=True)
+    # If a time delay is requested, change the times
+    if time_delay != 0:
+        eph.index -= time_delay
+
     if images:
         eph = eph[:images]
 
     crdlist = TessCoordList.from_pandas(eph)
-    imagelist = crdlist.list_images(author=author)
+    # crdlist = TessCoordList([crd for crd in crdlist if crd.is_observed()])
+    # imagelist = crdlist.list_images(author=author)
+
+    # Make sure a time-delay cutout has the same number of frames
+    imagelist = TessImageList([])
+    for crd in crdlist:
+        if crd.is_observed():
+            imagelist.append(crd.list_images(author=author)[0])
+        else:
+            imagelist.append(TessImage(None))
+
     return imagelist.moving_cutout(crdlist=crdlist, shape=shape)
