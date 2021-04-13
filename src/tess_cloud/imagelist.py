@@ -66,8 +66,17 @@ class TessImageList(UserList):
         obj._catalog = catalog
         return obj
 
+    def _get_default_client(self):
+        for img in self:
+            if img.url:
+                return img._get_default_client()
+        # If all images are None, the client type doesn't matter
+        return img._get_default_client(client_type="s3")
+
     async def _get_cutouts(self, crdlist: TessCoordList, shape):
-        async with self[0]._get_default_client() as client:
+        if len(self) == 0:
+            return []
+        async with self._get_default_client() as client:
             # Create list of functions to be executed
             flist = [
                 img.async_cutout(
@@ -94,22 +103,20 @@ class TessImageList(UserList):
         crdlist = TessCoordList(
             [
                 TessCoord(
-                    sector=self[0].sector,
-                    camera=self[0].camera,
-                    ccd=self[0].ccd,
+                    sector=img.sector if img.url else 1,  # TessCoord needs valid number
+                    camera=img.camera if img.url else 1,
+                    ccd=img.ccd if img.url else 1,
                     column=column,
                     row=row,
                 )
+                for img in self
             ]
-            * len(self)
         )
         return self.moving_cutout(crdlist=crdlist, shape=shape)
 
     def moving_cutout(self, crdlist: TessCoordList, shape=(5, 5)):
         cutouts = asyncio.run(self._get_cutouts(crdlist=crdlist, shape=shape))
-        tpf = TargetPixelFile.from_cutouts(
-            cutouts  # , extra_columns=["sector", "camera", "ccd"]
-        )
+        tpf = TargetPixelFile.from_cutouts(cutouts)
         return tpf.to_lightkurve()
 
 

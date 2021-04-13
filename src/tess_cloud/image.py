@@ -51,7 +51,7 @@ class TessImage:
         data_offset=None,
         meta=None,
     ):
-        if "/" in url:
+        if url and "/" in url:
             self.filename = url.split("/")[-1]
             self._url = url
         else:
@@ -59,7 +59,7 @@ class TessImage:
             self._url = None
 
         if data_ext is None:
-            if "hlsp_tica" in url:
+            if url and "hlsp_tica" in url:
                 data_ext = 0
             else:
                 data_ext = 1
@@ -84,41 +84,44 @@ class TessImage:
         else:
             raise ValueError("url must start with https:// or s3://")
 
-    def _get_default_client(self):
-        if self._client_type == "s3":
+    def _get_default_client(self, client_type=None):
+        if not client_type:
+            client_type = self._client_type
+
+        if client_type == "s3":
             return _default_s3_client()
         else:
             return _default_http_client()
 
     @property
     def sector(self) -> int:
-        return self.meta.get("sector")
+        return self.meta.get("sector", np.nan)
 
     @property
     def camera(self) -> int:
-        return self.meta.get("camera")
+        return self.meta.get("camera", np.nan)
 
     @property
     def ccd(self) -> int:
-        return self.meta.get("ccd")
+        return self.meta.get("ccd", np.nan)
 
     @property
     def time(self) -> str:
-        return self.meta.get("time")
+        return self.meta.get("time", np.nan)
 
     @property
     def cadenceno(self) -> int:
-        return self.meta.get("cadenceno")
+        return self.meta.get("cadenceno", np.nan)
 
     @property
     def quality(self) -> int:
-        return self.meta.get("quality")
+        return self.meta.get("quality", np.nan)
 
     @property
     def url(self) -> str:
         """Returns the URL for the image at AWS S3."""
-        if not self._url:
-            self._url = get_s3_uri(self.filename)
+        # if not self._url:
+        #    self._url = get_s3_uri(self.filename)
         return self._url
 
     @lru_cache()
@@ -298,6 +301,11 @@ class TessImage:
         self, column: int, row: int, shape=(5, 5), client=None
     ) -> np.array:
         """Returns a 2D array of pixel values."""
+        if self.url is None:
+            result = np.empty(shape)
+            result[:] = np.nan
+            return result
+
         blocks = await self._find_pixel_blocks(column=column, row=row, shape=shape)
         bytedata = await asyncio.gather(
             *[
@@ -321,7 +329,7 @@ class TessImage:
                 column=column, row=row, shape=shape, client=client
             )
 
-        if self.time:
+        if isinstance(self.time, str):
             time = Time(self.time).btjd
         else:
             time = self.time
