@@ -1,6 +1,6 @@
 import asyncio
 from collections import UserList
-from typing import Union
+from typing import Union, Tuple
 
 from astropy.time import Time
 from pandas import DataFrame
@@ -73,7 +73,7 @@ class TessImageList(UserList):
         # If all images are None, the client type doesn't matter
         return img._get_default_client(client_type="s3")
 
-    async def _get_cutouts(self, crdlist: TessCoordList, shape):
+    async def _get_cutouts(self, crdlist: TessCoordList, shape: Tuple[int, int]):
         if len(self) == 0:
             return []
         async with self._get_default_client() as client:
@@ -98,7 +98,7 @@ class TessImageList(UserList):
             results = [t.result() for t in tasks]
             return results
 
-    def cutout(self, column: int, row: int, shape=(5, 5)):
+    def cutout(self, column: int, row: int, shape: Tuple[int, int] = (5, 5)):
         # Turn (column, row) into a TessCoordList to match the interface of _get_cutouts
         crdlist = TessCoordList(
             [
@@ -114,7 +114,7 @@ class TessImageList(UserList):
         )
         return self.moving_cutout(crdlist=crdlist, shape=shape)
 
-    def moving_cutout(self, crdlist: TessCoordList, shape=(5, 5)):
+    def moving_cutout(self, crdlist: TessCoordList, shape: Tuple[int, int] = (5, 5)):
         cutouts = asyncio.run(self._get_cutouts(crdlist=crdlist, shape=shape))
         tpf = TargetPixelFile.from_cutouts(cutouts)
         return tpf.to_lightkurve()

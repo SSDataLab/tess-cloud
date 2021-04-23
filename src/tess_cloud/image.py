@@ -6,6 +6,7 @@ import re
 import struct
 import warnings
 from functools import lru_cache
+from typing import Tuple
 
 import aiohttp
 import aioboto3
@@ -270,11 +271,12 @@ class TessImage:
         pixel_offset = column + row * FFI_COLUMNS
         return data_offset + BYTES_PER_PIX * pixel_offset
 
-    async def _find_pixel_blocks(self, column: int, row: int, shape=(1, 1)) -> list:
+    async def _find_pixel_blocks(
+        self, column: float, row: float, shape: Tuple[int, int] = (1, 1)
+    ) -> list:
         """Returns the byte ranges of a rectangle."""
         result = []
-        col1 = int(column) - shape[0] // 2
-        row1 = int(row) - shape[1] // 2
+        col1, row1 = _compute_lower_left_corner(column, row, shape)
 
         if col1 < 0 or col1 >= FFI_COLUMNS:
             raise ValueError(f"column out of bounds (must be in range 0-{FFI_COLUMNS})")
@@ -298,9 +300,10 @@ class TessImage:
         max_tries=3,
     )
     async def _async_cutout_array(
-        self, column: int, row: int, shape=(5, 5), client=None
+        self, column: float, row: float, shape: Tuple[int, int] = (5, 5), client=None
     ) -> np.array:
         """Returns a 2D array of pixel values."""
+        # Avoid crashing for empty url; return empty cutout instead
         if self.url is None:
             result = np.empty(shape)
             result[:] = np.nan
@@ -321,7 +324,7 @@ class TessImage:
         return np.array(data)
 
     async def async_cutout(
-        self, column: int, row: int, shape=(5, 5), client=None
+        self, column: float, row: float, shape: Tuple[int, int] = (5, 5), client=None
     ) -> "Cutout":
         """Returns a cutout."""
         async with MAX_CONCURRENT_CUTOUTS:
@@ -329,6 +332,7 @@ class TessImage:
                 column=column, row=row, shape=shape, client=client
             )
 
+        # Ensure we record BTJD in the TPF
         if isinstance(self.time, str):
             time = Time(self.time).btjd
         else:
@@ -336,21 +340,28 @@ class TessImage:
 
         flux_err = flux.copy()
         flux_err[:] = np.nan
+        corner = _compute_lower_left_corner(column, row, shape)
+
         return Cutout(
+            url=self.url,
             time=time,
             flux=flux,
             flux_err=flux_err,
             sector=self.sector,
             camera=self.camera,
             ccd=self.ccd,
-            column=column,
-            row=row,
+            corner_column=corner[0],
+            corner_row=corner[1],
+            target_column=column,
+            target_row=row,
             cadenceno=self.cadenceno,
             quality=self.quality,
             meta=self.meta,
         )
 
-    def cutout(self, column, row, shape=(5, 5)) -> "Cutout":
+    def cutout(
+        self, column: float, row: float, shape: Tuple[int, int] = (5, 5)
+    ) -> "Cutout":
         """Returns a cutout."""
         return _sync_call(self.async_cutout, column=column, row=row, shape=shape)
 
@@ -358,26 +369,32 @@ class TessImage:
 class Cutout:
     def __init__(
         self,
+        url: str,
         time: float,
         flux: np.ndarray,
         flux_err: np.ndarray,
         sector: int,
         camera: int,
         ccd: int,
-        column: int,
-        row: int,
+        corner_column: int,
+        corner_row: int,
+        target_column: float,
+        target_row: float,
         cadenceno: int,
         quality: int,
         meta: dict = None,
     ):
+        self.url = url
         self.time = time
         self.flux = flux
         self.flux_err = flux_err
         self.sector = sector
         self.camera = camera
         self.ccd = ccd
-        self.column = column
-        self.row = row
+        self.corner_column = corner_column
+        self.corner_row = corner_row
+        self.target_column = target_column
+        self.target_row = target_row
         self.cadenceno = cadenceno
         self.quality = quality
         self.meta = meta
@@ -394,3 +411,10 @@ def _default_s3_client():
 
 def _sync_call(func, *args, **kwargs):
     return asyncio.run(func(*args, **kwargs))
+
+
+def _compute_lower_left_corner(
+    column: int, row: int, shape: Tuple[int, int]
+) -> Tuple[int, int]:
+    """Returns the (column, row) pixel coordinate of the lower left corner."""
+    return (int(column) - shape[0] // 2, int(row) - shape[1] // 2)

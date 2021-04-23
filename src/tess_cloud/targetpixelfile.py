@@ -34,8 +34,11 @@ TPF_OPTIONAL_COLUMNS = {
     "SECTOR": {"format": "I"},
     "CAMERA": {"format": "B"},
     "CCD": {"format": "B"},
-    "COLUMN": {"format": "I"},
-    "ROW": {"format": "I"},
+    "CORNER_COLUMN": {"format": "I", "unit": "pixels"},
+    "CORNER_ROW": {"format": "I", "unit": "pixels"},
+    "TARGET_COLUMN": {"format": "E", "unit": "pixels"},
+    "TARGET_ROW": {"format": "E", "unit": "pixels"},
+    "URL": {"format": "A150"},
 }
 
 
@@ -142,9 +145,19 @@ class TargetPixelFile:
         tpf.add_column(name="SECTOR", array=np.array([img.sector for img in images]))
         tpf.add_column(name="CAMERA", array=np.array([img.camera for img in images]))
         tpf.add_column(name="CCD", array=np.array([img.ccd for img in images]))
-        tpf.add_column(name="COLUMN", array=np.array([img.column for img in images]))
-        tpf.add_column(name="ROW", array=np.array([img.row for img in images]))
-
+        tpf.add_column(
+            name="CORNER_COLUMN", array=np.array([img.corner_column for img in images])
+        )
+        tpf.add_column(
+            name="CORNER_ROW", array=np.array([img.corner_row for img in images])
+        )
+        tpf.add_column(
+            name="TARGET_COLUMN", array=np.array([img.target_column for img in images])
+        )
+        tpf.add_column(
+            name="TARGET_ROW", array=np.array([img.target_row for img in images])
+        )
+        tpf.add_column(name="URL", array=np.array([img.url for img in images]))
         return tpf
 
     @staticmethod

@@ -1,6 +1,6 @@
 import numpy as np
 
-from tess_cloud.image import TessImage
+from tess_cloud.image import TessImage, _compute_lower_left_corner
 from tess_cloud.imagelist import TessImageList
 
 
@@ -21,3 +21,12 @@ def test_missing_images():
     assert tpf.flux.shape == (3, 5, 4)
     assert np.isnan(tpf.flux).all()
     assert tpf.time.format == "btjd"
+
+
+def test_compute_lower_left_corner():
+    assert _compute_lower_left_corner(10, 20, shape=(1, 1)) == (10, 20)
+    assert _compute_lower_left_corner(10, 20, shape=(2, 2)) == (9, 19)
+    assert _compute_lower_left_corner(10, 20, shape=(3, 3)) == (9, 19)
+    assert _compute_lower_left_corner(10, 20, shape=(4, 4)) == (8, 18)
+    assert _compute_lower_left_corner(10, 20, shape=(1, 2)) == (10, 19)
+    assert _compute_lower_left_corner(10, 20, shape=(2, 1)) == (9, 20)
