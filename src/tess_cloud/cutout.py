@@ -1,4 +1,5 @@
 import warnings
+from typing import Optional
 
 from tess_locator import locate, TessCoordList
 from tess_ephem import ephem
@@ -26,9 +27,10 @@ def cutout_ffi(url, column, row, shape=(5, 5)) -> TargetPixelFile:
 def cutout(
     target: str,
     shape: tuple = (5, 5),
-    sector: int = None,
+    sector: Optional[int] = None,
     author: str = "spoc",
-    images: int = None,
+    provider: Optional[str] = None,
+    images: Optional[int] = None,
 ) -> TargetPixelFile:
     """Returns a target pixel file."""
     locresult = locate(target=target, sector=sector)
@@ -43,7 +45,7 @@ def cutout(
             TessCloudWarning,
         )
     crd = locresult[0]
-    imagelist = crd.list_images(author=author)
+    imagelist = crd.list_images(author=author, provider=provider)
     if images:
         imagelist = imagelist[:images]
 
@@ -53,9 +55,10 @@ def cutout(
 def cutout_asteroid(
     target: str,
     shape: tuple = (10, 10),
-    sector: int = None,
+    sector: Optional[int] = None,
     author: str = "spoc",
-    images: int = None,
+    provider: Optional[str] = None,
+    images: Optional[int] = None,
     time_delay: float = 0.0,
 ) -> TargetPixelFile:
     """Returns a moving Target Pixel File centered on an asteroid."""
@@ -83,7 +86,9 @@ def cutout_asteroid(
         .index[0]
     )
     # Get the exact mid-frame times
-    time = list_images(sector=sector, camera=camera, ccd=ccd, author=author).time
+    time = list_images(
+        sector=sector, camera=camera, ccd=ccd, author=author, provider=provider
+    ).time
     eph = ephem(target, time=time, verbose=True)
     # If a time delay is requested, change the times
     if time_delay != 0:
@@ -100,7 +105,7 @@ def cutout_asteroid(
     imagelist = TessImageList([])
     for crd in crdlist:
         if crd.is_observed():
-            imagelist.append(crd.list_images(author=author)[0])
+            imagelist.append(crd.list_images(author=author, provider=provider)[0])
         else:
             imagelist.append(TessImage(None))
 

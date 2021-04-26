@@ -14,6 +14,7 @@ from . import crawler, log
 
 SPOC_AWS_PREFIX = "s3://stpubdata/tess/public/"
 SPOC_MAST_PREFIX = "https://archive.stsci.edu/missions/tess/"
+SPOC_MOCK_PREFIX = "http://localhost:8040/mock/spoc/"
 
 
 def list_spoc_images(
@@ -30,7 +31,7 @@ def list_spoc_images(
     Parameters
     ----------
     provider : str
-        "mast" or "aws".
+        "mast", "aws", or "mock".
         Defaults to "aws".
     """
     df = _load_spoc_ffi_catalog(sector=sector)
@@ -50,6 +51,8 @@ def list_spoc_images(
 
     if provider == "mast":
         df["path"] = SPOC_MAST_PREFIX + df["path"]
+    elif provider == "mock":
+        df["path"] = SPOC_MOCK_PREFIX + df["path"]
     else:
         df["path"] = SPOC_AWS_PREFIX + df["path"]
 

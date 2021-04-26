@@ -24,6 +24,7 @@ from . import DATADIR, log
 
 
 TICA_MAST_PREFIX = "https://archive.stsci.edu/hlsps/tica/"
+TICA_MOCK_PREFIX = "http://localhost:8040/mock/tica/"
 
 
 def list_tica_urls(sector=35) -> list:
@@ -106,6 +107,7 @@ def list_tica_images(
     camera: int = None,
     ccd: int = None,
     time: Union[str, Time] = None,
+    provider: str = None,
 ) -> TessImageList:
     """Returns a list of TICA FFI images."""
     df = _load_tica_ffi_catalog(sector=sector)
@@ -121,7 +123,10 @@ def list_tica_images(
         mask = (time >= begin) & (time <= end)
         df = df[mask]
 
-    df["path"] = TICA_MAST_PREFIX + df["path"]
+    if provider == "mock":
+        df["path"] = TICA_MOCK_PREFIX + df["path"]
+    else:
+        df["path"] = TICA_MAST_PREFIX + df["path"]
 
     # Add time column (TODO: move this to save_catalog)
     duration = Time(df.stop.iloc[0]) - Time(df.start.iloc[0])

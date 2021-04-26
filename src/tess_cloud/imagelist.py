@@ -132,7 +132,9 @@ def list_images(
     if author == "tica":
         from . import tica
 
-        return tica.list_tica_images(sector=sector, camera=camera, ccd=ccd)
+        return tica.list_tica_images(
+            sector=sector, camera=camera, ccd=ccd, time=time, provider=provider
+        )
     else:
         from . import spoc
 
