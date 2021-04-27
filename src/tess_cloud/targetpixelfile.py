@@ -45,8 +45,6 @@ TPF_OPTIONAL_COLUMNS = {
 class TargetPixelFile:
     """Class representation of a Target Pixel File (TPF)."""
 
-    _optional_column_data = {}
-
     def __init__(
         self,
         time: ndarray,
@@ -69,16 +67,23 @@ class TargetPixelFile:
             self.flux_bkg_err = np.empty(shape=flux.shape)
             self.flux_bkg_err[:] = np.nan
         self.wcs = wcs
-        if meta is None:
-            meta = {}
-            meta["TELESCOP"] = "TESS"
-            meta["ORIGIN"] = "tess_cloud"
-            meta["CREATOR"] = "tess_cloud.targetpixelfile"
-            meta["DATE"] = datetime.now().strftime("%Y-%m-%d")
-        self.meta = meta
 
-    def add_column(self, name, array):
+        meta_default = {
+            "TELESCOP": "TESS",
+            "ORIGIN": "tess_cloud",
+            "CREATOR": "tess_cloud.targetpixelfile",
+            "DATE": datetime.now().strftime("%Y-%m-%d"),
+        }
+        if meta:
+            meta_default.update(meta)
+        self.meta = meta_default
+
+        self._optional_column_data = {}
+
+    def add_column(self, name, array, colspec=None):
         self._optional_column_data[name] = array
+        if colspec:
+            TPF_OPTIONAL_COLUMNS[name] = colspec
 
     @property
     def n_cadences(self):
@@ -197,11 +202,17 @@ class TargetPixelFile:
         hdu.header.update(self.meta)
         return hdu
 
+    @property
+    def _coldim(self):
+        return "({},{})".format(self.n_columns, self.n_rows)
+
+    @property
+    def _eformat(self):
+        return "{}E".format(self.n_rows * self.n_columns)
+
     def _create_table_extension(self):
         """Create the 'TARGETTABLES' extension (i.e. extension #1)."""
         # Turn the data arrays into fits columns and initialize the HDU
-        coldim = "({},{})".format(self.n_columns, self.n_rows)
-        eformat = "{}E".format(self.n_rows * self.n_columns)
         jformat = "{}J".format(self.n_rows * self.n_columns)
         cols = []
         cols.append(
@@ -215,39 +226,43 @@ class TargetPixelFile:
                 name="RAW_CNTS",
                 format=jformat,
                 unit="count",
-                dim=coldim,
+                dim=self._coldim,
                 array=self.raw_cnts,
             )
         )
         cols.append(
             fits.Column(
-                name="FLUX", format=eformat, unit="e-/s", dim=coldim, array=self.flux
+                name="FLUX",
+                format=self._eformat,
+                unit="e-/s",
+                dim=self._coldim,
+                array=self.flux,
             )
         )
         cols.append(
             fits.Column(
                 name="FLUX_ERR",
-                format=eformat,
+                format=self._eformat,
                 unit="e-/s",
-                dim=coldim,
+                dim=self._coldim,
                 array=self.flux_err,
             )
         )
         cols.append(
             fits.Column(
                 name="FLUX_BKG",
-                format=eformat,
+                format=self._eformat,
                 unit="e-/s",
-                dim=coldim,
+                dim=self._coldim,
                 array=self.flux_bkg,
             )
         )
         cols.append(
             fits.Column(
                 name="FLUX_BKG_ERR",
-                format=eformat,
+                format=self._eformat,
                 unit="e-/s",
-                dim=coldim,
+                dim=self._coldim,
                 array=self.flux_bkg_err,
             )
         )
@@ -260,6 +275,7 @@ class TargetPixelFile:
                     array=self._optional_column_data[key],
                     format=TPF_OPTIONAL_COLUMNS[key].get("format", ""),
                     unit=TPF_OPTIONAL_COLUMNS[key].get("unit", ""),
+                    dim=TPF_OPTIONAL_COLUMNS[key].get("dim", ""),
                 )
             )
 

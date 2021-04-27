@@ -62,7 +62,7 @@ def cutout_asteroid(
     time_delay: float = 0.0,
 ) -> TargetPixelFile:
     """Returns a moving Target Pixel File centered on an asteroid."""
-    eph_initial = ephem(target)
+    eph_initial = ephem(target, sector=sector)
 
     # If no sector is specified, we default to the first available sector
     # and issue a warning if multiple sector choices were available.
