@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tess-cloud"
-version = "0.3.1"
+version = "0.4.0"
 description = "Analyze NASA TESS data in the cloud."
 license = "MIT"
 authors = ["Geert Barentsen <hello@geert.io>"]
@@ -15,12 +15,9 @@ classifiers = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-tess-locator = ">=0.4.0"
-tess-ephem = ">=0.2.0"
-lightkurve = ">=2.0.7"
-#tess-locator = {path = "../tess-locator", develop = true}
-#tess-ephem = {path = "../tess-ephem", develop = true}
-#lightkurve = {path = "../lightkurve", develop = true}
+tess-locator = ">=0.5.0"
+tess-ephem = ">=0.3.0"
+lightkurve = ">=2.0.9"
 numpy = ">=1.19"
 astropy = ">=4.2"
 aioboto3 = ">=8.2.0"
@@ -39,13 +36,16 @@ flake8 = "^3.8.4"
 pytest-cov = "^2.10.1"
 isort = "^5.6.4"
 mypy = "^0.790"
-line-profiler = "^3.1.0"
+line-profiler = "<=3.1.0 !=3.2.0 !=3.2.1"
 jupyterlab = "^2.2.9"
 pytest-xdist = "^2.1.0"
 nest-asyncio = "^1.5"
 memory-profiler = "^0.58.0"
 mkdocs = "^1.1.2"
 mkdocs-material = "^7.0.6"
+#tess-locator = {path = "../tess-locator", develop = true}
+#tess-ephem = {path = "../tess-ephem", develop = true}
+#lightkurve = {path = "../lightkurve", develop = true}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
