@@ -26,7 +26,7 @@ class SimpleAsteroidPipeline:
         target="Juno",
         shape=(10, 10),
         sector=23,
-        author="spoc",
+        author="SPOC",
         provider=None,
         images=None,
     ):
@@ -54,7 +54,7 @@ class SimpleAsteroidPipeline:
         """Returns the default time deltas for the leading/lagging apertures."""
         buffer = 30.0 / 1440.0  # Add 30 minutes buffer to be safe
         min_delta = round(buffer + self._minimum_time_delay(), 2)
-        return [x * min_delta for x in [-2, -1, +1, +2]]
+        return [x * min_delta for x in [-1, +1, +2]]
 
     def _cutout_target(self):
         return self._cutout_background_tpfs(delays=[0.0])[0]
@@ -92,21 +92,31 @@ class SimpleAsteroidPipeline:
         corrected_flux = self.target_tpf.flux.value - self.flux_bkg
 
         # Flux values can accidentally be negative
-        with warnings.filterwarnings("ignore", category=RuntimeWarning):
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
             corrected_flux_err = np.sqrt(
                 self.target_tpf.flux.value + self.flux_bkg_err ** 2
             )
 
         meta = {
+            "ORIGIN": f"tess_cloud v{__version__}",
             "CREATOR": "tess_cloud.targetpixelfile",
-            "METHOD": f"SimpleAsteroidPipeline v{__version__}",
-            "TARGET": self.target,
-            "SECTOR": self.sector,
-            "FFI_AUTH": self.author,
-            "FFI_PROV": self.provider,
+            "METHOD": "SimpleAsteroidPipeline",
+            "TARGET": (self.target, "Moving target identifier"),
+            "SECTOR": (self.sector, "TESS sector number"),
+            "FFI_AUTH": (self.author, "Author of the FFI images used"),
+            "FFI_PROV": (self.provider, "Data server accessed"),
+            "START": (
+                self.target_tpf.time[0].value,
+                "Time of the first cadence [BTJD]",
+            ),
+            "STOP": (self.target_tpf.time[-1].value, "Time of the last cadence [BTJD]"),
         }
         for idx, delay in enumerate(delays):
-            meta[f"BGDELAY{idx}"] = delays[idx]
+            meta[f"BGDELAY{idx}"] = (
+                delays[idx],
+                f"Background aperture {idx} delay [days]",
+            )
 
         tpf = TargetPixelFile(
             time=self.target_tpf.time.value,
@@ -129,5 +139,17 @@ class SimpleAsteroidPipeline:
                 bkgtpf.flux.value,
                 colspec={"format": tpf._eformat, "dim": tpf._coldim, "unit": "e-/s"},
             )
+
+        for col in [
+            "SECTOR",
+            "CAMERA",
+            "CCD",
+            "CORNER_COLUMN",
+            "CORNER_ROW",
+            "TARGET_COLUMN",
+            "TARGET_ROW",
+            "URL",
+        ]:
+            tpf.add_column(col, self.target_tpf.hdu[1].data[col])
 
         return tpf.to_lightkurve()
