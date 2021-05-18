@@ -31,6 +31,10 @@ mypy:
 isort:
 	$(CMD) isort $(PYMODULE) $(TESTS)
 
+# Generate a setup.py file from pyproject.toml
+setup.py: pyproject.toml
+	$(CMD) dephell deps convert
+
 # Run the mkdocs dev server
 docserve:
 	$(CMD) mkdocs serve

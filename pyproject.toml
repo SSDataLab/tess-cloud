@@ -43,6 +43,7 @@ nest-asyncio = "^1.5"
 memory-profiler = "^0.58.0"
 mkdocs = "^1.1.2"
 mkdocs-material = "^7.0.6"
+dephell = "^0.8.3"
 #tess-locator = {path = "../tess-locator", develop = true}
 #tess-ephem = {path = "../tess-ephem", develop = true}
 #lightkurve = {path = "../lightkurve", develop = true}
@@ -50,3 +51,7 @@ mkdocs-material = "^7.0.6"
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.dephell.main]  # config for `dephell deps convert`
+from = {format = "poetry", path = "pyproject.toml"}
+to = {format = "setuppy", path = "setup.py"}
