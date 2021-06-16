@@ -119,6 +119,10 @@ class TessImage:
         return self.meta.get("quality", np.nan)
 
     @property
+    def timecorr(self) -> float:
+        return self.meta.get("barycorr", np.nan)
+
+    @property
     def url(self) -> str:
         """Returns the URL for the image at AWS S3."""
         # if not self._url:
@@ -356,6 +360,7 @@ class TessImage:
             target_row=row,
             cadenceno=self.cadenceno,
             quality=self.quality,
+            timecorr=self.timecorr,
             meta=self.meta,
         )
 
@@ -382,6 +387,7 @@ class Cutout:
         target_row: float,
         cadenceno: int,
         quality: int,
+        timecorr: float,
         meta: dict = None,
     ):
         self.url = url
@@ -397,6 +403,7 @@ class Cutout:
         self.target_row = target_row
         self.cadenceno = cadenceno
         self.quality = quality
+        self.timecorr = timecorr
         self.meta = meta
 
 

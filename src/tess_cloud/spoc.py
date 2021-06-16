@@ -61,7 +61,7 @@ def list_spoc_images(
     timeobj = Time(df.start.values.astype(str)) + (duration / 2)
     df["time"] = timeobj.iso
 
-    # TODO: have this be part of save_catalog
+    # Problem: CADENCENO does not appear in SPOC FFI headers =(
     df["cadenceno"] = np.zeros(len(df), dtype=int)
 
     return TessImageList.from_catalog(df)

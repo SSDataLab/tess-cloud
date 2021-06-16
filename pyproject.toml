@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tess-cloud"
-version = "0.4.0"
+version = "0.5.dev"
 description = "Analyze NASA TESS data in the cloud."
 license = "MIT"
 authors = ["Geert Barentsen <hello@geert.io>"]
@@ -44,9 +44,9 @@ memory-profiler = "^0.58.0"
 mkdocs = "^1.1.2"
 mkdocs-material = "^7.0.6"
 dephell = "^0.8.3"
-#tess-locator = {path = "../tess-locator", develop = true}
-#tess-ephem = {path = "../tess-ephem", develop = true}
-#lightkurve = {path = "../lightkurve", develop = true}
+tess-locator = {path = "../tess-locator", develop = true}
+tess-ephem = {path = "../tess-ephem", develop = true}
+lightkurve = {path = "../lightkurve", develop = true}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -27,6 +27,7 @@ import lightkurve as lk
 
 
 TPF_OPTIONAL_COLUMNS = {
+    "TIMECORR": {"format": "E", "unit": "d"},
     "CADENCENO": {"format": "J"},
     "QUALITY": {"format": "J"},
     "POS_CORR1": {"format": "E", "unit": "pixels"},
@@ -144,6 +145,9 @@ class TargetPixelFile:
         )
 
         tpf.add_column(
+            name="TIMECORR", array=np.array([img.timecorr for img in images])
+        )
+        tpf.add_column(
             name="CADENCENO", array=np.array([img.cadenceno for img in images])
         )
         tpf.add_column(name="QUALITY", array=np.array([img.quality for img in images]))
@@ -217,9 +221,6 @@ class TargetPixelFile:
         cols = []
         cols.append(
             fits.Column(name="TIME", format="D", unit="BJD - 2457000", array=self.time)
-        )
-        cols.append(
-            fits.Column(name="TIMECORR", format="E", unit="D", array=self.timecorr)
         )
         cols.append(
             fits.Column(

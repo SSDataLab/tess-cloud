@@ -8,7 +8,7 @@ import asyncio
 import logging
 from pathlib import Path
 
-__version__ = "0.4.0"
+__version__ = "0.5.dev"
 
 # Configure logging
 log = logging.getLogger(__name__)

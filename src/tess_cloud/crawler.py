@@ -2,8 +2,10 @@
 
 Usage
 -----
-Use `save_spoc_ffi_catalog(sector)` to create a catalog of TESS FFI images.
+Create a catalog of TESS FFI SPOC images for Sector 10 as follows::
 
+    >>> from tess_cloud.crawler import save_spoc_ffi_catalog
+    >>> save_spoc_ffi_catalog(sector=10, overwrite=True)
 """
 import asyncio
 from pathlib import Path
@@ -85,5 +87,6 @@ async def _get_spoc_metadata_entry(url, sector=-1):
         "start": hdr["DATE-OBS"][:19],
         "stop": hdr["DATE-END"][:19],
         "quality": hdr["DQUALITY"],
+        "barycorr": hdr["BARYCORR"],
         "data_offset": data_offset,
     }

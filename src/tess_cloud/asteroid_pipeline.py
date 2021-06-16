@@ -140,7 +140,9 @@ class SimpleAsteroidPipeline:
                 colspec={"format": tpf._eformat, "dim": tpf._coldim, "unit": "e-/s"},
             )
 
+        # Columns which are not standard in lightkurve.TargetPixelFile
         for col in [
+            "TIMECORR",
             "SECTOR",
             "CAMERA",
             "CCD",
