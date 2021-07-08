@@ -413,7 +413,7 @@ def _default_http_client():
 
 
 def _default_s3_client():
-    return aioboto3.client("s3", config=Config(signature_version=UNSIGNED))
+    return aioboto3.Session().client("s3", config=Config(signature_version=UNSIGNED))
 
 
 def _sync_call(func, *args, **kwargs):
