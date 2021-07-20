@@ -50,11 +50,23 @@ class SimpleAsteroidPipeline:
         result = 0.5 * diagonal_crossing_time / 24
         return result
 
-    def compute_delays(self):
-        """Returns the default time deltas for the leading/lagging apertures."""
-        buffer = 30.0 / 1440.0  # Add 30 minutes buffer to be safe
+    def compute_delays(self, offsets=(-2, -1, +1, +2, +3)):
+        """Returns the default time deltas for the leading/lagging apertures.
+
+        Parameters
+        ----------
+        offsets : tuple of int
+            Offset of the leading/lagging apertures in units of "aperture size".
+            For example, offsets=(-1, +1) would compute the delays needed for an
+            aperture that directly lags and leads the target aperture;
+            offsets=(-2,+2) would compute the delay needed for a lagging/leading
+            aperture that is one aperture size removed from the target aperture.
+        """
+        # `min_delta` captures the time it takes for the target to move
+        # out of the aperture, plus a 30 minute buffer to be safe.
+        buffer = 30.0 / 1440.0
         min_delta = round(buffer + self._minimum_time_delay(), 2)
-        return [x * min_delta for x in [-1, +1, +2]]
+        return [x * min_delta for x in offsets]
 
     def _cutout_target(self):
         return self._cutout_background_tpfs(delays=[0.0])[0]
