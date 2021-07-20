@@ -282,7 +282,14 @@ class TargetPixelFile:
 
         coldefs = fits.ColDefs(cols)
         hdu = fits.BinTableHDU.from_columns(coldefs)
+
+        # Set useful header keywords
         hdu.header["BJDREFI"] = 2457000
+        # Lightkurve relies on 1CRV5P and 2CRV5P to display column/row coordinates in plots
+        if "CORNER_COLUMN" in self._optional_column_data:
+            hdu.header["1CRV5P"] = self._optional_column_data["CORNER_COLUMN"][0]
+        if "CORNER_ROW" in self._optional_column_data:
+            hdu.header["2CRV5P"] = self._optional_column_data["CORNER_ROW"][0]
 
         return hdu
 
