@@ -1,9 +1,11 @@
 import asyncio
 
 from astropy.io import fits
+import lightkurve as lk
 import numpy as np
+import pytest
 
-from tess_cloud import TessImage
+from tess_cloud import TessImage, list_images
 
 
 def test_cutout():
@@ -33,3 +35,27 @@ def test_cutout():
         img.cutout(column=1, row=1, shape=(1, 3)).flux.round(7)
         == np.array([[-0.0605419], [0.0327947], [-0.0278026]])
     ).all()
+
+
+@pytest.mark.remote_data
+def test_against_tesscut():
+    """Does a cutout from TessCut match TessCloud?"""
+    target = "Pi Men"
+    sector = 31
+    shape = (3, 3)
+    # Download TPF with TessCut
+    tpf_tesscut = lk.search_tesscut(target, sector=sector).download(
+        cutout_size=shape, quality_bitmask=None
+    )
+    # Download TPF with TessCloud
+    imglist = list_images(sector=sector, camera=tpf_tesscut.camera, ccd=tpf_tesscut.ccd)
+    center_column, center_row = (
+        tpf_tesscut.column + 1,
+        tpf_tesscut.row + 1,
+    )  # add +1 to request center of a (3, 3)
+    tpf_tesscloud = imglist[0:2].cutout(
+        column=center_column, row=center_row, shape=shape
+    )
+    # Compare both
+    assert np.all(tpf_tesscut[0].flux == tpf_tesscloud[0].flux)
+    assert np.all(tpf_tesscut[1].flux == tpf_tesscloud[1].flux)

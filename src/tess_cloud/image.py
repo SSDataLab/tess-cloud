@@ -272,7 +272,9 @@ class TessImage:
     async def _find_pixel_offset(self, column: int, row: int) -> int:
         """Returns the byte offset of a specific pixel position."""
         data_offset = await self._find_data_offset(ext=self.data_ext)
-        pixel_offset = column + row * FFI_COLUMNS
+        # Subtract 1 from column and row because the byte location assumes zero-indexing,
+        # whereas the TESS convention is to address column and row number with one-indexing.
+        pixel_offset = (column - 1) + (row - 1) * FFI_COLUMNS
         return data_offset + BYTES_PER_PIX * pixel_offset
 
     async def _find_pixel_blocks(
