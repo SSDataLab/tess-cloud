@@ -19,20 +19,21 @@ def test_cutout():
     # Can we find the correct start position of the data for extenions 0 and 1?
     assert asyncio.run(img._find_data_offset(ext=0)) == 2880
     assert asyncio.run(img._find_data_offset(ext=1)) == 23040
-    assert asyncio.run(img._find_pixel_offset(column=0, row=0)) == 23040
-    assert asyncio.run(img._find_pixel_blocks(column=0, row=0, shape=(1, 1))) == [
+    # By tess convention, the very first pixel has column=1 and row=1
+    assert asyncio.run(img._find_pixel_offset(column=1, row=1)) == 23040
+    assert asyncio.run(img._find_pixel_blocks(column=1, row=1, shape=(1, 1))) == [
         (23040, 4)
     ]
     # Corner pixel
-    assert img.cutout(column=0, row=0, shape=(1, 1)).flux.round(7) == 0.0941298
+    assert img.cutout(column=1, row=1, shape=(1, 1)).flux.round(7) == 0.0941298
     # First three pixels of the first row
     assert (
-        img.cutout(column=1, row=0, shape=(3, 1)).flux.round(7)
+        img.cutout(column=2, row=1, shape=(3, 1)).flux.round(7)
         == np.array([0.0941298, -0.0605419, 0.0106343])
     ).all()
     # First three pixels of the first column
     assert (
-        img.cutout(column=1, row=1, shape=(1, 3)).flux.round(7)
+        img.cutout(column=2, row=2, shape=(1, 3)).flux.round(7)
         == np.array([[-0.0605419], [0.0327947], [-0.0278026]])
     ).all()
 
