@@ -340,7 +340,7 @@ class TessImage:
 
         # Ensure we record BTJD in the TPF
         if isinstance(self.time, str):
-            time = Time(self.time).btjd
+            time = Time(self.time).tdb.btjd
         else:
             time = self.time
 
