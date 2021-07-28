@@ -92,23 +92,22 @@ class SimpleAsteroidPipeline:
         self.background_tpfs = self._cutout_background_tpfs(delays=delays)
         median = np.nanmedian([tpf.flux for tpf in self.background_tpfs], axis=0)
         std = np.nanstd([tpf.flux for tpf in self.background_tpfs], axis=0)
-        return (median, std)
+        bias = np.nanpercentile([tpf.flux for tpf in self.background_tpfs], 10)
+        return (median, std, bias)
 
     def run(self, delays: Tuple[float] = None):
-        if not delays:
+        if delays is None:
             delays = self.compute_delays()
 
         self.target_tpf = self._cutout_target()
-        self.flux_bkg, self.flux_bkg_err = self.estimate_background(delays=delays)
+        self.flux_bkg, self.flux_bkg_err, bias = self.estimate_background(delays=delays)
 
-        corrected_flux = self.target_tpf.flux.value - self.flux_bkg
+        corrected_flux = self.target_tpf.flux.value - self.flux_bkg + bias
 
         # Flux values can accidentally be negative
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
-            corrected_flux_err = np.sqrt(
-                self.target_tpf.flux.value + self.flux_bkg_err ** 2
-            )
+            corrected_flux_err = np.sqrt(corrected_flux)
 
         meta = {
             "ORIGIN": f"tess_cloud v{__version__}",
