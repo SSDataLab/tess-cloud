@@ -91,6 +91,6 @@ def list_images(sector: int, camera: int = None, ccd: int = None):
         ccd = r"\d"  # regex
     ffi_files = _load_ffi_manifest()
     mask = ffi_files.path.str.match(
-        fr".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+        rf".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
     )
     return ffi_files[mask].path.str.split("/").str[-1].values.tolist()
