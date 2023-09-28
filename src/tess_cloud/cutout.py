@@ -4,8 +4,6 @@ from typing import Optional
 from tess_locator import locate, TessCoordList
 from tess_ephem import ephem
 
-from astropy.time import Time
-
 from .image import TessImage
 from .imagelist import list_images, TessImageList
 from .targetpixelfile import TargetPixelFile

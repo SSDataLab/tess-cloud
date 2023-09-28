@@ -19,7 +19,7 @@ from datetime import datetime
 from typing import Optional
 
 import numpy as np
-from numpy import array, ndarray
+from numpy import ndarray
 
 from astropy.wcs import WCS
 from astropy.io import fits
