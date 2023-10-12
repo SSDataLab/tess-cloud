@@ -44,9 +44,9 @@ memory-profiler = "^0.58.0"
 mkdocs = "^1.1.2"
 mkdocs-material = "^7.0.6"
 dephell = "^0.8.3"
-tess-locator = {path = "../tess-locator", develop = true}
-tess-ephem = {path = "../tess-ephem", develop = true}
-lightkurve = {path = "../lightkurve", develop = true}
+# tess-locator = {path = "../tess-locator", develop = true}
+# tess-ephem = {path = "../tess-ephem", develop = true}
+# lightkurve = {path = "../lightkurve", develop = true}
 pytest-remotedata = "^0.3.2"
 
 [build-system]
