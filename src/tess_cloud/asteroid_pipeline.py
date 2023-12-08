@@ -8,7 +8,7 @@ import numpy as np
 from tess_ephem import ephem
 
 from . import cutout_asteroid, __version__
-from .targetpixelfile import TargetPixelFile, TPF_OPTIONAL_COLUMNS
+from .targetpixelfile import TargetPixelFile
 
 
 class SimpleAsteroidPipeline:

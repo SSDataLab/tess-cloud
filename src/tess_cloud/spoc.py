@@ -111,7 +111,7 @@ def _list_spoc_images_mast(sector, camera=r"\d", ccd=r"\d"):
     # try:
     df = _get_mast_bundle(sector=sector)
     mask = df.url.str.match(
-        fr".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+        rf".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
     )
     return TessImageList([TessImage(url) for url in df[mask].url.values])
     # except HTTPError:
@@ -122,7 +122,7 @@ def _list_spoc_images_aws(sector, camera=r"\d", ccd=r"\d"):
     """Returns a list of the FFIs for a given sector/camera/ccd."""
     ffi_files = _load_ffi_manifest()
     mask = ffi_files.path.str.match(
-        fr".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
+        rf".*tess(\d+)-s{sector:04d}-{camera}-{ccd}-\d+-._ffic.fits"
     )
     return TessImageList(
         [TessImage("s3://stpubdata/" + x) for x in ffi_files[mask].path.values]

@@ -21,7 +21,6 @@ import backoff
 
 from . import MAX_CONCURRENT_DOWNLOADS, MAX_CONCURRENT_CUTOUTS, MAX_TCP_CONNECTIONS
 from . import USER_AGENT, TESS_S3_BUCKET, log
-from .manifest import get_s3_uri
 
 # FITS standard specifies that header and data units
 # shall be a multiple of 2880 bytes long.

@@ -4,8 +4,6 @@ from typing import Optional
 from tess_locator import locate, TessCoordList
 from tess_ephem import ephem
 
-from astropy.time import Time
-
 from .image import TessImage
 from .imagelist import list_images, TessImageList
 from .targetpixelfile import TargetPixelFile
@@ -45,7 +43,16 @@ def cutout(
             TessCloudWarning,
         )
     crd = locresult[0]
-    imagelist = crd.list_images(author=author, provider=provider)
+    # imagelist = crd.list_images(author=author, provider=provider)
+    imagelist = list_images(
+        sector=crd.sector,
+        camera=crd.camera,
+        ccd=crd.ccd,
+        time=crd.time,
+        author=author,
+        provider=provider,
+    )
+    print(imagelist)
     if images:
         imagelist = imagelist[:images]
 
@@ -104,8 +111,17 @@ def cutout_asteroid(
     # Make sure a time-delay cutout has the same number of frames
     imagelist = TessImageList([])
     for crd in crdlist:
-        if crd.is_observed():
-            imagelist.append(crd.list_images(author=author, provider=provider)[0])
+        img_list = list_images(
+            sector=crd.sector,
+            camera=crd.camera,
+            ccd=crd.ccd,
+            time=crd.time,
+            author=author,
+            provider=provider,
+        )
+        if len(img_list) > 0:
+            # imagelist.append(crd.list_images(author=author, provider=provider)[0])
+            imagelist.append(img_list[0])
         else:
             imagelist.append(TessImage(None))
 
